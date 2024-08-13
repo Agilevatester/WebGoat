@@ -10,7 +10,7 @@ import org.apache.camel.component.snakeyaml.SnakeYAMLDataFormat;
 import org.yaml.snakeyaml.nodes.Tag;
 
 public final class SnakeYAMLTestHelper {
-//Camel Sample
+//Camel Sample Raw
   protected SnakeYAMLTestHelper() {}
 
   public static UnsafePojo createTestPojo() {
