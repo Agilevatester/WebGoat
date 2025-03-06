@@ -61,17 +61,17 @@
     <developer>
       <id>jwayman</id>
       <name>Jeff Wayman</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>dcowden</id>
       <name>Dave Cowden</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>lawson89</id>
       <name>Richard Lawson</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>dougmorato</id>
@@ -150,7 +150,7 @@
     <webwolf.context>/</webwolf.context>
     <wiremock.version>2.27.2</wiremock.version>
     <xml-resolver.version>1.2</xml-resolver.version>
-    <xstream.version>1.4.5</xstream.version>
+    <xstream.version>1.4.21</xstream.version>
     <!-- do not update necessary for lesson -->
     <zxcvbn.version>1.8.0</zxcvbn.version>
   </properties>
@@ -301,7 +301,7 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>2.6.3</version>
+      <version>3.2.11</version>
       <exclusions>
         <exclusion>
           <groupId>org.springframework.boot</groupId>
@@ -500,7 +500,7 @@ CVE-2023-39106 -->
     <dependency>
       <groupId>com.alibaba.nacos</groupId>
       <artifactId>nacos-spring-context</artifactId>
-      <version>1.1.1</version>
+      <version>2.1.1</version>
       <!-- <version>1.1.2</version> -->
     </dependency>
 
@@ -550,7 +550,7 @@ CVE-2023-39106-->
     <dependency>
       <groupId>org.verapdf</groupId>
       <artifactId>core-jakarta</artifactId>
-      <version>1.24.1</version>
+      <version>1.26.2</version>
     </dependency>
     <!-- end CVE-2024-28109 -->
 
@@ -607,7 +607,7 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
  	<dependency>
 			<groupId>org.springframework.data</groupId>
 			<artifactId>spring-data-mongodb</artifactId>
-			<version>3.4.0</version>
+			<version>4.2.11</version>
 		</dependency>
 <!-- CVE-2022-22980 -->
 
@@ -780,8 +780,8 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
               <includes>
                 <include>.gitignore</include>
               </includes>
-              <trimTrailingWhitespace></trimTrailingWhitespace>
-              <endWithNewline></endWithNewline>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
               <indent>
                 <tabs>true</tabs>
                 <spacesPerTab>4</spacesPerTab>
@@ -792,7 +792,7 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
             <includes>
               <include>**/*.md</include>
             </includes>
-            <flexmark></flexmark>
+            <flexmark/>
           </markdown>
           <java>
             <includes>
@@ -800,7 +800,7 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
               <include>src/test/java/**/*.java</include>
               <include>src/it/java/**/*.java</include>
             </includes>
-            <removeUnusedImports></removeUnusedImports>
+            <removeUnusedImports/>
             <googleJavaFormat>
               <style>GOOGLE</style>
               <reflowLongStrings>true</reflowLongStrings>
