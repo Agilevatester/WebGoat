@@ -23,9 +23,6 @@
 package org.owasp.webgoat.lessons.ossquartzjobs;
 
 import static org.quartz.JobBuilder.newJob;
-import static org.quartz.SimpleScheduleBuilder.repeatSecondlyForever;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
-import static org.quartz.TriggerBuilder.newTrigger;
 
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
@@ -52,32 +49,33 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
     try {
       log.info("Received a request for API version: {}", jobConfig);
       System.out.println(" Received a request for API version " + jobConfig);
-      
+
       Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
       scheduler.start();
       JobDetail jobDetail = newJob(HelloJob.class).build();
-      jobDetail.getJobDataMap().put("jobId",jobConfig);
-      jobDetail.getJobDataMap().put("jms.connection.factory","ldap://localhost:9001/Evil");
+      jobDetail.getJobDataMap().put("jobId", jobConfig);
+      jobDetail.getJobDataMap().put("jms.connection.factory", "ldap://localhost:9001/Evil");
 
-    //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
-      
-//      org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new org.quartz.jobs.ee.jms.SendQueueMessageJob();
-      
+      //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
+
+      //      org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new
+      // org.quartz.jobs.ee.jms.SendQueueMessageJob();
+
       jobDetail = newJob(SendQueueMessageJob.class).build();
-      jobDetail.getJobDataMap().put("jms.connection.factory",jobConfig);
-      jobDetail.getJobDataMap().put("jms.connection.factory","ldap://localhost:9001/Evil");
-      
-      Trigger trigger = TriggerBuilder.newTrigger()
-         //     .withIdentity(jobName, groupName)
+      jobDetail.getJobDataMap().put("jms.connection.factory", jobConfig);
+      jobDetail.getJobDataMap().put("jms.connection.factory", "ldap://localhost:9001/Evil");
+
+      Trigger trigger =
+          TriggerBuilder.newTrigger()
+              //     .withIdentity(jobName, groupName)
               .startNow()
               .build();
 
-      //Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
+      // Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
 
       scheduler.scheduleJob(jobDetail, trigger);
       Thread.sleep(1000);
       scheduler.shutdown();
-      
 
     } catch (IllegalArgumentException ex) {
       return success(this)
@@ -103,20 +101,22 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
     JobDetail jobDetail = newJob(HelloJob.class).build();
     jobDetail.getJobDataMap().put("jobId", "Hello");
 
-  //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
-    
-//    org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new org.quartz.jobs.ee.jms.SendQueueMessageJob();
-    
+    //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
+
+    //    org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new
+    // org.quartz.jobs.ee.jms.SendQueueMessageJob();
+
     jobDetail = newJob(SendQueueMessageJob.class).build();
-    
+
     String jobName = "demo1"; // Your Job Name
     String groupName = "demo"; // Your Job Group
-    Trigger trigger = TriggerBuilder.newTrigger()
-       //     .withIdentity(jobName, groupName)
+    Trigger trigger =
+        TriggerBuilder.newTrigger()
+            //     .withIdentity(jobName, groupName)
             .startNow()
             .build();
 
-    //Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
+    // Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
 
     scheduler.scheduleJob(jobDetail, trigger);
     Thread.sleep(1000);
@@ -130,9 +130,11 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
       log.info("HelloJob executed");
       System.out.println(" Job Scheduler");
-      System.out.println("Job Details Map --> "+jobExecutionContext.getJobDetail().getJobDataMap().getString("jobId"));
-//      jobExecutionContext.getJobDetail().getJobDataMap()
-      
+      System.out.println(
+          "Job Details Map --> "
+              + jobExecutionContext.getJobDetail().getJobDataMap().getString("jobId"));
+      //      jobExecutionContext.getJobDetail().getJobDataMap()
+
     }
   }
 }

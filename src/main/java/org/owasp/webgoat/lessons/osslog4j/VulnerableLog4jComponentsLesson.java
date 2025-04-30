@@ -37,7 +37,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class VulnerableLog4jComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(VulnerableLog4jComponentsLesson.class.getName());
-    //This is test code by surya
+
+  // This is test code by surya
   @PostMapping("/VulnerableLog4jComponentsLesson/index")
   public @ResponseBody AttackResult index(@RequestHeader("X-Api-Version") String apiversion) {
 

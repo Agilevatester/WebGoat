@@ -218,17 +218,15 @@ Team WebGoat
 
 ## Version 2024.1-SNAPSHOT - Enhanced Application to include Open source component vulnerability. Please do not run the application in unsecure environment and open to public, as most of opensource vulnerabilities are exploitable and compromise the system.
 
-
-
 Modifying spring-boot jvm arguments to execute Xtream Payload
-	<jvmArguments> --add-opens java.base/sun.nio.ch=ALL-UNNAMED
-						--add-opens java.base/java.io=ALL-UNNAMED
-						--add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens
-						java.base/java.io=ALL-UNNAMED
-						--add-opens java.base/java.util=ALL-UNNAMED --add-opens
-						java.base/java.lang.reflect=ALL-UNNAMED
-						--add-opens java.base/java.text=ALL-UNNAMED --add-opens
-						java.desktop/java.awt.font=ALL-UNNAMED
-						--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
-						--add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.desktop/java.beans=ALL-UNNAMED --add-opens=java.naming/javax.naming.ldap=ALL-UNNAMED
-						</jvmArguments> 
+<jvmArguments> --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens java.base/java.io=ALL-UNNAMED
+--add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens
+java.base/java.io=ALL-UNNAMED
+--add-opens java.base/java.util=ALL-UNNAMED --add-opens
+java.base/java.lang.reflect=ALL-UNNAMED
+--add-opens java.base/java.text=ALL-UNNAMED --add-opens
+java.desktop/java.awt.font=ALL-UNNAMED
+--add-opens=java.base/sun.nio.ch=ALL-UNNAMED
+--add-opens=java.base/java.io=ALL-UNNAMED --add-opens=java.desktop/java.beans=ALL-UNNAMED --add-opens=java.naming/javax.naming.ldap=ALL-UNNAMED
+</jvmArguments>

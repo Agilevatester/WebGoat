@@ -39,7 +39,6 @@ import org.owasp.webgoat.container.users.WebGoatUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -52,7 +51,6 @@ import org.springframework.web.client.RestTemplate;
 
 /*import org.h2.server.web.WebServlet;
 import org.springframework.boot.context.embedded.ServletRegistrationBean;*/
-
 
 @Configuration
 @ComponentScan(basePackages = {"org.owasp.webgoat.container", "org.owasp.webgoat.lessons"})
@@ -90,13 +88,12 @@ public class WebGoat {
   public RestTemplate restTemplate() {
     return new RestTemplate();
   }
-  
-	
-	/*
-	 * @Bean ServletRegistrationBean<Servlet> h2servletRegistration(){
-	 * ServletRegistrationBean registrationBean = new ServletRegistrationBean( new
-	 * WebServlet()); registrationBean.addUrlMappings("/console/*"); return
-	 * registrationBean; }
-	 */
-	 
+
+  /*
+   * @Bean ServletRegistrationBean<Servlet> h2servletRegistration(){
+   * ServletRegistrationBean registrationBean = new ServletRegistrationBean( new
+   * WebServlet()); registrationBean.addUrlMappings("/console/*"); return
+   * registrationBean; }
+   */
+
 }

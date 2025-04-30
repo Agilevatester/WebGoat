@@ -22,19 +22,10 @@
 
 package org.owasp.webgoat.lessons.ossspringmongodb;
 
-import static org.quartz.JobBuilder.newJob;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import static org.quartz.SimpleScheduleBuilder.repeatSecondlyForever;
-import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
-import static org.quartz.TriggerBuilder.newTrigger;
-
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
 import org.quartz.*;
-import org.quartz.impl.StdSchedulerFactory;
-import org.quartz.jobs.ee.jms.SendQueueMessageJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,26 +39,27 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
 
   Logger log = LoggerFactory.getLogger(VulnerableSpringMongoDBComponentsLesson.class.getName());
 
-//   @Autowired
-	private CustomerRepository repository;
+  //   @Autowired
+  private CustomerRepository repository;
 
-//https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975  
+  // https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975
   @PostMapping("/VulnerableSpringMongoDBComponentsLesson/CVE-2022-22980")
   public @ResponseBody AttackResult index(@RequestParam("name") String name) {
 
     try {
-      log.info("Received a request for VulnerableSpringMongoDBComponentsLesson/CVE-2022-22980 : {}", name);
-      //https://github.com/trganda/CVE-2022-22980/blob/main/src/main/java/com/example/accessingdatamongodb/CustomerRepository.java
-      Customer customer= repository.findByFirstName(name);
-      
-      if(name!=null&& customer==null) {
-    	  success(this)
-          .feedback("vulnerable-spring-mongodb-components.success")
-          .output("Successfully exploited ")
-          .build();
+      log.info(
+          "Received a request for VulnerableSpringMongoDBComponentsLesson/CVE-2022-22980 : {}",
+          name);
+      // https://github.com/trganda/CVE-2022-22980/blob/main/src/main/java/com/example/accessingdatamongodb/CustomerRepository.java
+      Customer customer = repository.findByFirstName(name);
+
+      if (name != null && customer == null) {
+        success(this)
+            .feedback("vulnerable-spring-mongodb-components.success")
+            .output("Successfully exploited ")
+            .build();
       }
 
-  
     } catch (Exception ex) {
       return failed(this)
           .feedback("vulnerable-spring-mongodb-components.close")
@@ -81,9 +73,7 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
         .build();
   }
 
-  public static void main(String[] args) throws Exception {
-    
-  }
+  public static void main(String[] args) throws Exception {}
 
   public static class HelloJob implements Job {
     Logger log = LoggerFactory.getLogger(HelloJob.class.getName());
@@ -92,9 +82,11 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
       log.info("HelloJob executed");
       System.out.println(" Job Scheduler");
-      System.out.println("Job Details Map --> "+jobExecutionContext.getJobDetail().getJobDataMap().getString("jobId"));
-//      jobExecutionContext.getJobDetail().getJobDataMap()
-      
+      System.out.println(
+          "Job Details Map --> "
+              + jobExecutionContext.getJobDetail().getJobDataMap().getString("jobId"));
+      //      jobExecutionContext.getJobDetail().getJobDataMap()
+
     }
   }
 }
