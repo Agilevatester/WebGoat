@@ -61,13 +61,13 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableVeraPdfCoreJakartaComponents/CVE-2024-27348")
+  @PostMapping("/VulnerableITextPdfIOComponentsLesson/CVE-2024-27348")
   public @ResponseBody AttackResult NacosYamlParser(
       @RequestParam String payload,
       @RequestParam(required = false, defaultValue = "true") Boolean isXsl) {
     //// https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793 - CVE-2024-28109
 
-    log.info("VulnerableVeraPdfCoreJakartaComponents called with payload : {}", payload);
+    log.info("VulnerableITextPdfIOComponentsLesson called with payload : {}", payload);
     try {
 
       // Parameter injection: javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*"
