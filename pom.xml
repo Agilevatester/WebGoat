@@ -61,17 +61,17 @@
     <developer>
       <id>jwayman</id>
       <name>Jeff Wayman</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>dcowden</id>
       <name>Dave Cowden</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>lawson89</id>
       <name>Richard Lawson</name>
-      <email></email>
+      <email/>
     </developer>
     <developer>
       <id>dougmorato</id>
@@ -301,7 +301,7 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
-      <version>2.6.3</version>
+      <version>3.3.7</version>
       <exclusions>
         <exclusion>
           <groupId>org.springframework.boot</groupId>
@@ -780,8 +780,8 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
               <includes>
                 <include>.gitignore</include>
               </includes>
-              <trimTrailingWhitespace></trimTrailingWhitespace>
-              <endWithNewline></endWithNewline>
+              <trimTrailingWhitespace/>
+              <endWithNewline/>
               <indent>
                 <tabs>true</tabs>
                 <spacesPerTab>4</spacesPerTab>
@@ -792,7 +792,7 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
             <includes>
               <include>**/*.md</include>
             </includes>
-            <flexmark></flexmark>
+            <flexmark/>
           </markdown>
           <java>
             <includes>
@@ -800,7 +800,7 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
               <include>src/test/java/**/*.java</include>
               <include>src/it/java/**/*.java</include>
             </includes>
-            <removeUnusedImports></removeUnusedImports>
+            <removeUnusedImports/>
             <googleJavaFormat>
               <style>GOOGLE</style>
               <reflowLongStrings>true</reflowLongStrings>
