@@ -40,7 +40,7 @@ import org.verapdf.core.VeraPDFException;
 import org.verapdf.policy.PolicyChecker;
 
 @RestController
-@AssignmentHints({"vulnerable-verapdf-corejakarata.hint"})
+@AssignmentHints({"vulnerable-verapdf.hint"})
 public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
@@ -48,7 +48,7 @@ public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndp
   @PostMapping("/VulnerableVeraPdfCoreJakartaComponents/CVE-2024-27348")
   public @ResponseBody AttackResult NacosYamlParser(
       @RequestParam String payload,
-      @RequestParam(required = false, defaultValue = "true") Boolean isXsl) {
+      @RequestParam(required = false, defaultValue = "false") Boolean isXsl) {
     ////		https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793  - CVE-2024-28109
 
     log.info("VulnerableVeraPdfCoreJakartaComponents called with payload : {}", payload);
@@ -76,25 +76,25 @@ public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndp
 
       if (policyResultOss.toString().contains("pid")) {
         return success(this)
-            .feedback("vulnerable-verapdf-corejakarata-components.success")
+            .feedback("vulnerable-verapdf-components.success")
             .output(policyResultOss.toString())
             .build();
       }
       //			obj.get("docmuemtn)
     } catch (VeraPDFException ex) {
       return success(this)
-          .feedback("vulnerable-verapdf-corejakarata-components.success")
+          .feedback("vulnerable-verapdf-components.success")
           .output(ex.getMessage())
           .build();
     } catch (Exception ex) {
       return failed(this)
-          .feedback("vulnerable-verapdf-corejakarata-components.close")
+          .feedback("vulnerable-verapdf-components.close")
           .output(ex.getMessage())
           .build();
     }
 
     return failed(this)
-        .feedback("vulnerable-verapdf-corejakarata-components.fromXML")
+        .feedback("vulnerable-verapdf-components.fromXML")
         .feedbackArgs(payload)
         .build();
   }

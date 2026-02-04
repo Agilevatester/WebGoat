@@ -43,7 +43,7 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
   private CustomerRepository repository;
 
   // https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975
-  @PostMapping("/VulnerableSpringMongoDBComponentsLesson/CVE-2022-22980")
+  @PostMapping("/VulnerableSpringMongoDBComponentsLesson/search")
   public @ResponseBody AttackResult index(@RequestParam("name") String name) {
 
     try {

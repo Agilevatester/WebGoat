@@ -108,7 +108,7 @@ public class VulnerableSnakeYamlComponentsLesson extends AssignmentEndpoint {
         .build();
   }
 
-  @PostMapping("/VulnerableSnakeYamlComponents/safeConstructor")
+  @PostMapping("/VulnerableSnakeYamlComponents/SafeConstructor")
   public @ResponseBody AttackResult safeConstructor(@RequestParam String payload) {
 
     log.info("VulnerableSnakeYamlComponents called with payload : {}", payload);

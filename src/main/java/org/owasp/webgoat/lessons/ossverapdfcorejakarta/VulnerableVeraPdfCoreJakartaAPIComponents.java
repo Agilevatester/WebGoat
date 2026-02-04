@@ -35,6 +35,6 @@ public class VulnerableVeraPdfCoreJakartaAPIComponents extends Lesson {
 
   @Override
   public String getTitle() {
-    return "vulnerable-verapdf-corejakarata-components.title";
+    return "vulnerable-verapdf-components.title";
   }
 }

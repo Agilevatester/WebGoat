@@ -67,7 +67,7 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
       @RequestParam(required = false, defaultValue = "true") Boolean isXsl) {
     //// https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793 - CVE-2024-28109
 
-    log.info("VulnerableVeraPdfCoreJakartaComponents called with payload : {}", payload);
+    log.info("VulnerableITextPdfIOComponentsLesson called with payload : {}", payload);
     try {
 
       // Parameter injection: javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*"

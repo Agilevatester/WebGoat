@@ -1,15 +1,209 @@
-= Vulnerable Components
+= CVE-2022-1471: SnakeYAML Vulnerability - Interactive Learning Path
 
-== Concept
+:toc: left
+:toclevels: 2
+:icons: font
 
-The way we build software has changed.  The open source community is maturing and the availability of open source software has become prolific without regard to determining the provenance of the libraries used in our applications. Ref:  https://www.sonatype.com/state-of-the-software-supply-chain/introduction[Software Supply Chain]
+This lesson guides you through understanding **CVE-2022-1471**, a critical vulnerability in the SnakeYAML library used by thousands of Java applications.
 
-This lesson will walk through the difficulties with managing dependent libraries, the risk of not managing those dependencies, and the difficulty in determining if you are at risk.
+== 🎯 Choose Your Path
 
-image::images/OpenSourceGrowing2023.png[caption="Figure: ", title="The continued growth of Open Source software.", alt="SSC", width="500", height="262", style="lesson-image" link=https://www.sonatype.com/state-of-the-software-supply-chain/introduction]
+=== ⚡ Quick Start (5 minutes)
 
-== Goals
+Perfect if you already know about SnakeYAML and just need the fix:
 
-* Gain awareness that the open source consumed is as important as your own custom code.
-* Gain awareness of the management, or lack of management, in our open source component consumption.
-* Understand the importance of a Bill of Materials in determining open source component risk
+* Jump to **Challenge 1** below to see vulnerability in action
+* Jump to **Part 4: Quick Fix** for immediate remediation
+
+[NOTE]
+.Quick Fix Summary
+====
+Replace `new Yaml(new Constructor())` with `new Yaml(new SafeConstructor())`
+
+Then test and deploy. Done!
+====
+
+---
+
+=== 📚 Full Learning Path (30-40 minutes)
+
+Recommended for comprehensive understanding:
+
+==== Part 1: Foundations (7 min)
+* Understand what SnakeYAML is
+* Learn why open source vulnerabilities matter
+* Know the basic YAML syntax
+
+==== Part 2: The Vulnerability (8 min)
+* Details of CVE-2022-1471
+* Root cause analysis
+* Real-world consequences of not patching
+* Quick assessment: Are you vulnerable?
+
+==== Part 3: Exploitation (8 min)
+* 4 exploitation techniques with examples
+* How to construct malicious YAML payloads
+* How to detect attack patterns
+* **Interactive Challenges** - Try to exploit it yourself!
+
+==== Part 4: Mitigation (10 min)
+* 4 different fix strategies
+* Which one to use and when
+* Testing and verification
+* Remediation timeline
+
+---
+
+## What You'll Learn
+
+By the end of this lesson, you'll understand:
+
+✅ How SnakeYAML deserializes YAML into Java objects  
+✅ Why allowing arbitrary class instantiation is dangerous  
+✅ How attackers exploit CVE-2022-1471 to achieve RCE  
+✅ 4 different ways to fix this vulnerability  
+✅ How to detect exploitation attempts  
+✅ When to patch and how to test safely  
+
+---
+
+## Vulnerability At A Glance
+
+[cols="2,3"]
+|===
+| Property | Value
+
+| **CVE ID**
+| https://nvd.nist.gov/vuln/detail/CVE-2022-1471[CVE-2022-1471]
+
+| **CVSS Score**
+| 9.8 🔴 CRITICAL
+
+| **Affected Versions**
+| SnakeYAML < 2.0
+
+| **Type**
+| Unsafe Deserialization → Remote Code Execution
+
+| **Attack Vector**
+| Network (YAML parsing endpoint)
+
+| **Authentication Required?**
+| No
+
+| **Exploitability**
+| Easy - Proof of concepts widely available
+|===
+
+---
+
+## Recommended Reading Order
+
+[cols="1,4,2"]
+|===
+| # | Section | Time
+
+| 1
+| **Part 1: Foundations** - Know the basics
+| 7 min
+
+| 2
+| **Part 2: The Vulnerability** - Understand the risk
+| 8 min
+
+| 3
+| **Part 3: Exploitation** - See how it works
+| 8 min
+
+| 4
+| **Challenge 1, 2, 3** - Try it yourself
+| 10 min
+
+| 5
+| **Part 4: Mitigation** - Learn the fix
+| 10 min
+
+| 6
+| **Original Content** - Additional context
+| Optional
+|===
+
+**Total time:** ~40 minutes for complete mastery
+
+---
+
+## Quick Reference
+
+=== Vulnerable Code (DON'T DO THIS)
+[source,java]
+----
+Yaml yaml = new Yaml(new Constructor());
+Object obj = yaml.load(userInput);  // ← EXPLOITABLE
+----
+
+=== Safe Code (DO THIS)
+[source,java]
+----
+Yaml yaml = new Yaml(new SafeConstructor());
+Object obj = yaml.load(userInput);  // ✓ SAFE
+----
+
+=== Check if You're Vulnerable
+[source,bash]
+----
+mvn dependency:tree | grep snakeyaml
+# If < 2.0, you're vulnerable
+----
+
+---
+
+## Learning Objectives
+
+By completing this lesson, you will be able to:
+
+. **Identify** vulnerable SnakeYAML usage in code
+. **Explain** how CVE-2022-1471 allows remote code execution
+. **Construct** malicious YAML payloads to exploit the vulnerability
+. **Apply** at least 3 different mitigation strategies
+. **Detect** exploitation attempts in YAML input
+. **Test** fixes to ensure they work correctly
+. **Plan** a remediation timeline for your organization
+
+---
+
+## Important Note ⚠️
+
+[WARNING]
+====
+**Educational Purpose Only**
+
+The challenges in this lesson are in a **sandboxed environment**. Do not attempt to exploit real systems you don't own—that's illegal.
+
+Use this knowledge to:
+* Secure your own applications
+* Understand your organization's vulnerabilities
+* Train your security team
+* Improve code review processes
+====
+
+---
+
+## Let's Begin!
+
+Ready to start? Scroll down to:
+
+* **Part 1: Foundations** - Start here if you're new to this
+* **Challenge 1** - Jump here if you want hands-on experience
+* **Part 4: Quick Fix** - Jump here if you just need the solution
+
+Or read the original lesson content below for additional context.
+
+---
+
+== Related Resources
+
+* https://nvd.nist.gov/vuln/detail/CVE-2022-1471[NVD CVE-2022-1471 Details]
+* https://github.com/yaml/pyyaml/wiki/UnsafeLoading[YAML Unsafe Loading Explanation]
+* https://owasp.org/www-community/Deserialization_of_untrusted_data[OWASP Deserialization Guide]
+* https://snyk.io/blog/snakeyaml-vulnerability-cve-2022-1471/[Snyk SnakeYAML Vulnerability Analysis]
+* https://github.com/evilmartians/evil-martians-yaml[Evil Martians YAML Gadget Chains]

@@ -1,7 +1,206 @@
+[[part1-foundations]]
+= Part 1: Foundations
 
-== 2013 OWASP Top 10 - A9
+== [[what-is-snakeyaml]]What is SnakeYAML?
 
-As early as 2013, thought leaders like OWASP recognized that "WE" need to pay attention to this problem.
+SnakeYAML is a popular Java library for parsing and generating YAML (YAML Ain't Markup Language) documents. 
 
+=== Why is it Popular?
 
-image::images/OWASP-2013-A9.png[caption="Figure: ", title="2013 OWASP - Top 10 - A9", alt="A9", width="800", height="500", style="lesson-image" link="https://www.owasp.org/index.php/Top_10_2013-A9-Using_Components_with_Known_Vulnerabilities"]
+[cols="3*", options="header"]
+|===
+| Use Case | Example | Adoption
+| Configuration Management | Spring Boot `application.yml` | 🟢 Very Common
+| Orchestration | Kubernetes manifests | 🟢 Very Common
+| CI/CD Pipelines | GitHub Actions, Jenkins | 🟢 Very Common
+| Data Exchange | REST API responses | 🟡 Common
+| Docker | Docker Compose files | 🟡 Common
+|===
+
+=== YAML Syntax Basics
+
+Before understanding the vulnerability, you need to know how YAML works:
+
+==== Simple YAML (Safe)
+[source,yaml]
+----
+# Basic key-value pairs
+name: John
+age: 30
+email: john@example.com
+
+# Lists
+fruits:
+  - apple
+  - banana
+  - orange
+
+# Nested objects
+person:
+  name: Jane
+  address:
+    street: 123 Main St
+    city: Springfield
+----
+
+==== YAML with Tags (Dangerous)
+[source,yaml]
+----
+# YAML tags specify Java class types
+# Format: !!fully.qualified.ClassName
+
+# This tells the parser to create a Java String
+name: !!java.lang.String "John"
+
+# This tells the parser to create a Java HashMap
+data: !!java.util.HashMap
+  key1: value1
+  key2: value2
+----
+
+=== How SnakeYAML Parses YAML
+
+[source,java]
+----
+// Step 1: Create a YAML parser
+Yaml yaml = new Yaml(new Constructor());
+
+// Step 2: Load the YAML string
+String input = """
+!!javax.script.ScriptEngineManager [...]
+""";
+
+// Step 3: Parse and instantiate objects
+Object result = yaml.load(input);
+// If YAML contains !!ClassName tags, 
+// the Constructor creates instances of those classes
+----
+
+The key insight: *SnakeYAML will instantiate ANY Java class you tell it to through YAML tags.*
+
+=== Quick Quiz: Understanding YAML Tags
+
+[NOTE]
+.What does this YAML do?
+====
+[source,yaml]
+----
+!!java.util.ArrayList
+  - item1
+  - item2
+----
+
+It creates a `java.util.ArrayList` with two items. ✓ Correct!
+====
+
+---
+
+== [[oss-risk]]Open Source Risk Overview
+
+Modern applications are like recipes - they contain many "ingredients" (dependencies).
+
+=== The Growth Problem
+
+According to the https://www.sonatype.com/state-of-the-software-supply-chain/[Sonatype State of Software Supply Chain Report]:
+
+* **Open source components** make up 80%+ of modern applications
+* **Dependency chain** can be 100+ levels deep
+* **Vulnerabilities discovered** at a rate of 1,700+ per day
+* **Developer awareness** is low for transitive dependencies
+
+image::images/OpenSourceGrowing2023.png[Open Source Growth, width=400, link=https://www.sonatype.com/state-of-the-software-supply-chain/introduction]
+
+=== Common OSS Vulnerability Examples
+
+==== Apache Commons Collections (2015)
+
+[cols="2,3"]
+|===
+| Vulnerability | RCE through unsafe deserialization
+| Impact | Thousands of Java applications affected
+| Time to Exploit | 9 months before public awareness
+| Result | Emergency patches required
+|===
+
+*Lesson:* Even stable, mature libraries can have critical vulnerabilities.
+
+==== jQuery-UI (2016)
+
+[cols="2,3"]
+|===
+| Vulnerability | DOM XSS in dialog widget
+| Impact | Cross-site scripting attacks possible
+| Root Cause | Improper input sanitization
+| Fix | Update to 1.12.0+
+|===
+
+*Lesson:* Small UI libraries can have big security impact.
+
+==== Jackson (2017-2020)
+
+[cols="2,3"]
+|===
+| Vulnerability | Polymorphic deserialization RCE
+| Impact | Affects Spring Framework users
+| CVEs | Multiple versions, multiple CVEs
+| Status | Partially mitigated
+|===
+
+*Lesson:* Deserialization libraries are high-risk targets.
+
+=== The Vulnerability Chain
+
+[source]
+----
+Your Application
+    ↓ depends on
+Spring Framework
+    ↓ depends on
+Jackson + SnakeYAML
+    ↓ contains
+Vulnerable Code
+    ↓ allows
+Remote Code Execution
+    ↓ enables
+Complete Server Compromise
+----
+
+=== Questions You Should Ask
+
+Before adding any OSS dependency:
+
+. ✓ When was the last release? (Old = Higher Risk)
+. ✓ How many open issues/PRs? (Many = Less maintained)
+. ✓ Are there known vulnerabilities? (Check NVD, Snyk)
+. ✓ How widely used is it? (More users = More scrutiny = Safer)
+. ✓ Does your org have an upgrade strategy? (Can you patch quickly?)
+
+=== Bill of Materials (BOM)
+
+A BOM lists all components and versions in your application:
+
+[source,xml]
+----
+<dependency>
+  <groupId>org.yaml</groupId>
+  <artifactId>snakeyaml</artifactId>
+  <version>1.30</version>  <!-- VULNERABLE -->
+</dependency>
+
+<dependency>
+  <groupId>com.google.guava</groupId>
+  <artifactId>guava</artifactId>
+  <version>32.1.3-jre</version>
+</dependency>
+
+<!-- ... 50+ more dependencies ... -->
+----
+
+Tools like OWASP Dependency-Check scan your BOM for known vulnerabilities.
+
+---
+
+== Next Steps
+
+✓ You now understand what SnakeYAML is and OSS risk  
+→ Proceed to **Part 2: The Vulnerability** to learn about CVE-2022-1471 specifically

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
+    
+    <!-- Main Documentation -->
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/ossspringmongodb/documentation/VulnerableSpringMongoDBcomponents_plan.adoc}"></div>
+    </div>
+
+        <!-- Original Content 0 -->
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/ossspringmongodb/documentation/VulnerableSpringMongoDBcomponents_content0.adoc}"></div>
+    </div>
+
+    <!-- Challenge 1: Vulnerable Endpoint (CVE-2022-22980 SpEL Injection) -->
+    <div class="lesson-page-wrapper">
+        <div class="challenge-header">
+            <h3>🎯 Challenge 1: Exploit SpEL Injection in MongoDB Queries</h3>
+            <div class="difficulty-badge">Difficulty: ⭐⭐⭐⭐</div>
+            <p class="challenge-description">
+                <strong>Scenario:</strong> A Spring Data MongoDB application uses `@Query` annotations with SpEL expressions to filter customer records. 
+                The application accepts user input for searching customers by first name. Your task is to discover 
+                if the query processor has unsafe behaviors when processing special SpEL patterns.
+            </p>
+            <div class="challenge-objective">
+                <p><strong>Objective:</strong> Craft a malicious SpEL expression that demonstrates how the query processor 
+                handles parameter substitution and can lead to code execution.</p>
+            </div>
+        </div>
+
+        <div class="attack-container">
+            <div class="assignment-success">
+                <i class="fa fa-2 fa-check hidden" aria-hidden="true"></i>
+                <span class="success-message">Challenge Completed!</span>
+            </div>
+
+            <div class="challenge-context">
+                <p><strong>Key Insight:</strong> The MongoDB query uses `@Query("{ 'firstName' : ?#{?0} }")` which evaluates SpEL expressions. 
+                What if you could inject special operators into the firstName parameter? 
+                Can you make the SpEL processor execute Java code?</p>
+                
+                <div class="request-hint-box">
+                    <p><strong>💡 Request Structure Hint:</strong></p>
+                    <pre class="http-example">
+POST /VulnerableSpringMongoDBComponentsLesson/search HTTP/1.1
+Host: localhost:8080
+Content-Type: application/x-www-form-urlencoded
+
+firstName=[YOUR SPEL EXPRESSION HERE]
+                    </pre>
+                </div>
+            </div>
+
+            <form class="attack-form" accept-charset="UTF-8" method="POST" name="attackForm" 
+                  action="VulnerableSpringMongoDBComponents/search">
+                
+                <div id="lessonContent">
+                    <div class="input-section">
+                        <h4>🔍 Craft Your SpEL Expression:</h4>
+                        
+                        <p class="hint-text">💡 <em>Hints to explore:</em></p>
+                        <ul class="hint-list">
+                            <li><strong>SpEL T() Operator:</strong> Access Java classes using T(classname) syntax</li>
+                            <li><strong>Runtime Access:</strong> T(java.lang.Runtime) gives access to system execution</li>
+                            <li><strong>Method Invocation:</strong> getRuntime() and exec() methods for command execution</li>
+                            <li><strong>Expression Pattern:</strong> Try <code>T(java.lang.Runtime).getRuntime().exec('command')</code></li>
+                            <li><strong>Parameter Substitution:</strong> The firstName parameter is evaluated as SpEL via `?#{?0}` syntax</li>
+                        </ul>
+
+                        <table class="input-table">
+                            <!-- SpEL Expression Input -->
+                            <tr class="parameter-input-row">
+                                <td class="label">
+                                    <strong>Search Query:</strong><br/>
+                                    <code>firstName</code>
+                                </td>
+                                <td class="input-field">
+                                    <textarea 
+                                        id="firstName" 
+                                        name="firstName" 
+                                        rows="6" 
+                                        cols="75" 
+                                        placeholder="Try SpEL with Java class access...&#10;Example: T(java.lang.Runtime).getRuntime().exec('whoami')"
+                                    ></textarea>
+                                    <small class="field-hint">This value will be evaluated as SpEL in the @Query annotation</small>
+                                </td>
+                            </tr>
+
+                            <!-- Submit Button -->
+                            <tr class="submit-row">
+                                <td colspan="2" class="button-cell">
+                                    <input 
+                                        name="SUBMIT" 
+                                        value="🔍 Search Customer" 
+                                        type="SUBMIT" 
+                                        class="submit-btn"
+                                    />
+                                    <span class="submit-hint">Clicking will execute the MongoDB query with your SpEL expression</span>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div class="info-box">
+                            <p><strong>ℹ️ What to Look For:</strong></p>
+                            <ul>
+                                <li>✓ SpEL T() operator for class access</li>
+                                <li>✓ java.lang.Runtime class methods</li>
+                                <li>✓ exec() method for command execution</li>
+                                <li>✓ ProcessBuilder for alternative execution</li>
+                                <li>✓ java.nio.file for file system access</li>
+                            </ul>
+                        </div>
+
+                        <div class="warning-box">
+                            <p><strong>⚠️ Real-World Context:</strong></p>
+                            <p>In CVE-2022-22980, the vulnerability exists because Spring Data MongoDB evaluates user-supplied 
+                            input as SpEL expressions when using `?#{?0}` syntax in @Query annotations. SpEL's T() operator 
+                            allows access to arbitrary Java classes, including Runtime, ProcessBuilder, and file system classes. 
+                            This allows direct execution of system commands with application privileges.</p>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="results-section">
+                <div class="attack-feedback"></div>
+                <div class="attack-output"></div>
+            </div>
+
+            <div class="progress-indicator">
+                <p><strong>Status:</strong> <span class="status-text">Ready for input...</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Resources -->
+    <div class="lesson-page-wrapper">
+        <div class="resources-section">
+            <h4>🔍 Investigation Resources</h4>
+            <ul class="resources-list">
+                <li><a href="#" target="_blank">Spring Expression Language (SpEL) Documentation</a></li>
+                <li><a href="#" target="_blank">Spring Data MongoDB @Query Annotation</a></li>
+                <li><a href="#" target="_blank">SpEL Injection Attack Patterns</a></li>
+                <li><a href="#" target="_blank">MongoDB Query Language Basics</a></li>
+            </ul>
+        </div>
+    </div>
+
+       <!-- Original Content 0 -->
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/ossspringmongodb/documentation/SpringMongoDBcomponents_content1.adoc}"></div>
+    </div>
+</html>

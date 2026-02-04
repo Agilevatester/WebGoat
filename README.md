@@ -17,6 +17,13 @@ This program is a demonstration of common server-side application flaws. The
 exercises are intended to be used by people to learn about application security and
 penetration testing techniques.
 
+This project updated **intentional vulnerable and secure dependency configurations**
+to demonstrate, test, and validate security tooling (SAST, SCA, DAST, runtime detection, etc.).
+
+By default, **secure versions are used**.  
+Vulnerable dependencies can be enabled selectively using Maven profiles.
+
+
 **WARNING 1:** *While running this program your machine will be extremely
 vulnerable to attack. You should disconnect from the Internet while using
 this program.*  WebGoat's default configuration binds to localhost to minimize
@@ -153,3 +160,44 @@ Or in a docker run it would (once this version is pushed into docker hub) look l
 docker run -d -p 127.0.0.1:8080:8080 -p 127.0.0.1:9090:9090 -e EXCLUDE_CATEGORIES="CLIENT_SIDE,GENERAL,CHALLENGE" -e EXCLUDE_LESSONS="SqlInjectionAdvanced,SqlInjectionMitigations" webgoat/webgoat
 ```
 
+
+
+---
+
+## 🔎 Quick Reference Table
+
+| CVE | Component | Vulnerable Version | Secure Version | Maven Profile |
+|---|---|---|---|---|
+| **CVE-2021-44228** | Log4j (Log4Shell) | 2.14.1 | 2.23.1 | `-Pvulnerable-log4j` |
+| **CVE-2022-22980** | MongoDB (SpEL) | 3.3.5 | 4.3.0 | `-Pvulnerable-mongodb` |
+| **CVE-2023-39106** | Nacos | 1.1.2 | 1.1.1 | `-Pvulnerable` |
+| **CVE-2023-39017** | Quartz | 2.3.2 | 2.5.0-rc1 | `-Pvulnerable` |
+| **CVE-2022-26520** | PostgreSQL | 42.3.0 | 42.7.1 | `-Pvulnerable` |
+| **CVE-2024-32888** | Redshift | 2.1.0.27 | 2.1.0.30 | `-Pvulnerable` |
+| **CVE-2024-28109** | VeraPDF | 1.24.1 | 1.25.0 | `-Pvulnerable` |
+| **CVE-2021-43113** | iText | 7.1.12 | 7.2.5 | `-Pvulnerable` |
+
+---
+
+## 🚀 Build & Usage
+
+### 🟢 Default (Secure Versions)
+
+Build using only secure dependency versions:
+
+```bash
+mvn clean install
+
+### 🔴 Vulnerable dependencies (UnSecure Versions)
+
+Build with all vulnerable dependency versions:
+
+mvn clean install -Pvulnerable
+
+mvn spring-boot:run -Pvulnerable
+
+### 🟡 Individual Vulnerable dependencies
+
+Build with Individual Vulnerabilities:
+
+mvn clean install -Pvulnerable-log4j
