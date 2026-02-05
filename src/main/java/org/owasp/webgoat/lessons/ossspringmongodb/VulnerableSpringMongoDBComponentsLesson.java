@@ -28,6 +28,7 @@ import org.owasp.webgoat.container.assignments.AttackResult;
 import org.quartz.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -39,11 +40,11 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
 
   Logger log = LoggerFactory.getLogger(VulnerableSpringMongoDBComponentsLesson.class.getName());
 
-  //   @Autowired
+  // @Autowired
   private CustomerRepository repository;
 
   // https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975
-  @PostMapping("/VulnerableSpringMongoDBComponentsLesson/search")
+  @PostMapping("/VulnerableSpringMongoDBComponents/search")
   public @ResponseBody AttackResult index(@RequestParam("name") String name) {
 
     try {
