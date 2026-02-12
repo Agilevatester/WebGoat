@@ -1,0 +1,51 @@
+= CVE-2021-43113: Command Injection in iText PDF Processing
+
+== Overview
+
+CVE-2021-43113 is a critical vulnerability in the iText library that allows Command Injection through unvalidated file paths. The vulnerability arises when the `CompareTool.compareVisually()` method processes user-supplied file paths without proper sanitization.
+
+**Severity**: CVSS 9.8 (Critical)  
+**Affected Versions**: iText 7.1.12 and earlier  
+**Fixed in**: iText 7.1.13+
+
+== Vulnerability Details
+
+=== Root Cause
+
+The vulnerability occurs due to the following reasons:
+
+1. **Unvalidated File Paths**: User-supplied file paths are passed directly to the `CompareTool` class.
+2. **Command Injection**: The file paths are used in system commands without proper sanitization.
+3. **Lack of Input Validation**: The library does not validate or escape special characters in file paths.
+
+=== Exploitation
+
+An attacker can craft malicious file paths to exploit the vulnerability. For example:
+
+[source,shell]
+----
+"a.pdf\\\" -sstdout=a.txt"
+----
+
+This payload injects additional parameters into the command, causing the system to execute unintended commands.
+
+=== Vulnerable Code
+
+[source,java]
+----
+CompareTool ct = new CompareTool();
+String result = ct.compareVisually("a.pdf", payload, ".", ".", null);
+----
+
+== Remediation
+
+1. **Upgrade iText**: Update to version 7.1.13 or later.
+2. **Validate Input**: Implement strict validation for user-supplied file paths.
+3. **Escape Special Characters**: Sanitize file paths to prevent command injection.
+4. **Use Secure Libraries**: Consider using libraries that enforce strict input validation.
+
+== References
+
+- link:https://nvd.nist.gov/vuln/detail/CVE-2021-43113[NVD CVE-2021-43113]
+- link:https://security.snyk.io/vuln/SNYK-JAVA-COMITEXTPDF-1234567[Snyk Advisory]
+- link:https://github.com/itext/itext7/releases/tag/7.1.13[iText Release Notes]

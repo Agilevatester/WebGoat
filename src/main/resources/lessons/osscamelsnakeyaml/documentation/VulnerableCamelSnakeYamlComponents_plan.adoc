@@ -1,0 +1,76 @@
+= CVE-2023-39106: Nacos SnakeYAML Deserialization Vulnerability
+
+== Overview
+
+CVE-2023-39106 is a critical Remote Code Execution (RCE) vulnerability in Alibaba Nacos that affects versions prior to 2.2.1. The vulnerability exists in the `DefaultYamlConfigParse` class which uses SnakeYAML for parsing YAML configuration files without proper restrictions on object instantiation.
+
+== Vulnerability Details
+
+=== Affected Versions
+- Nacos versions < 2.2.1
+- Spring Cloud Alibaba versions using vulnerable Nacos
+
+=== Root Cause
+
+The vulnerability arises from unsafe YAML deserialization. SnakeYAML's default behavior allows instantiation of arbitrary Java objects during parsing. The `DefaultYamlConfigParse.parse()` method does not restrict which classes can be instantiated, enabling attackers to instantiate dangerous classes like `javax.script.ScriptEngineManager`.
+
+=== Why It's Vulnerable
+
+1. **Unrestricted Object Deserialization**: SnakeYAML is configured to allow complex object instantiation without validation
+2. **No Type Whitelist**: The parser accepts any Java class specified in YAML tags
+3. **Property Injection**: Arbitrary properties can be set on instantiated objects
+4. **ClassLoader Manipulation**: Attackers can specify custom ClassLoaders (e.g., `URLClassLoader`) to load malicious classes from remote sources
+
+== Attack Vector
+
+=== Exploitation Mechanism
+
+An attacker can craft a malicious YAML payload that instantiates `javax.script.ScriptEngineManager` with a `URLClassLoader` pointing to attacker-controlled server:
+
+
+When this payload is parsed:
+
+1. SnakeYAML instantiates `javax.script.ScriptEngineManager`
+2. A `URLClassLoader` is created pointing to the attacker's server
+3. The ClassLoader loads and executes malicious bytecode
+4. Arbitrary code execution occurs with application privileges
+
+=== Exploitation Steps
+
+1. Attacker sends malicious YAML payload via Nacos configuration endpoint
+2. Application calls `DefaultYamlConfigParse.parse(payload)`
+3. SnakeYAML deserializes the payload and instantiates dangerous classes
+4. `ScriptEngineManager` loads remote classes and executes arbitrary code
+5. Attacker gains complete control of the application
+
+== Consequences
+
+=== Impact Severity: **CRITICAL**
+
+- **Remote Code Execution (RCE)**: Complete system compromise
+- **Data Breach**: Access to sensitive configuration and database credentials
+- **System Integrity**: Ability to modify, delete, or exfiltrate data
+- **Lateral Movement**: Use compromised system to attack other infrastructure
+- **Denial of Service**: System shutdown or resource exhaustion
+
+
+
+== References
+
+- link:https://security.snyk.io/vuln/SNYK-JAVA-COMALIBABANACOS-5848032[Snyk Security Advisory]
+- link:https://github.com/advisories/GHSA-v6c8-pwhq-288m[GitHub Security Advisory]
+- link:https://github.com/alibaba/nacos/releases/tag/2.2.1[Nacos 2.2.1 Release]
+- link:https://yaml.org/type/[YAML Type Safe Specification]
+- link:https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html[OWASP Deserialization Cheat Sheet]
+
+== Exploit Hint for WebGoat Exercise
+
+To successfully exploit this vulnerability in the WebGoat lesson:
+
+1. **Understand the gadget chain**: `ScriptEngineManager` → `URLClassLoader` → Remote Code Execution
+2. **Craft the payload**: Use YAML tags to instantiate arbitrary classes
+3. **Host malicious bytecode**: Set up a web server with compiled `.class` files
+4. **Deliver the payload**: Submit the malicious YAML through the lesson endpoint
+5. **Verify exploitation**: Confirm that `ScriptEngineManager` is instantiated (the lesson checks `instanceof`)
+
+*Note*: The lesson provides visual feedback when the vulnerable class is successfully instantiated, confirming the RCE risk.

