@@ -1,0 +1,57 @@
+
+== Exercise: OTP Brute Force — No Rate Limiting
+_DeepStrike Technique 3_
+
+=== The Vulnerability
+
+A 6-digit OTP has 1,000,000 possible values. A 4-digit OTP has 10,000. Without rate limiting,
+lockout, or CAPTCHA on the OTP verification endpoint, an automated tool exhausts the entire
+keyspace in seconds using simple sequential requests.
+
+Spring Security 7's `InMemoryOneTimeTokenService` invalidates a token after a single successful
+consumption, but does **not** implement rate limiting itself. Applications must add their own
+attempt counter — for example, via a servlet filter or an in-memory counter keyed by session ID.
+
+=== The Scenario
+
+You have reached the OTP verification step for user `admin`. The OTP was sent to the device, but
+you don't have it. The endpoint accepts unlimited incorrect submissions.
+
+*Your goal:* Submit the correct OTP by exploiting the absence of rate limiting.
+
+=== How to Approach It
+
+*Option A — Automated (recommended):*
+
+Use an intercepting proxy to automate the guessing:
+
+1. Intercept the OTP submission request in *Burp Suite* or *OWASP ZAP*.
+2. Send the request to *Intruder* (Burp) / *Fuzzer* (ZAP).
+3. Set the `otp` parameter as the payload position.
+4. Use a numeric sequence payload: `0000` → `9999`.
+5. Filter results by response length or feedback text to find the correct value.
+
+*Option B — Manual (use hints):*
+
+If you want to focus on the concept rather than the automation, use the hints to obtain the OTP
+value directly.
+
+[source,shell]
+----
+# Example curl loop (bash)
+for i in $(seq -w 0000 9999); do
+  result=$(curl -s -X POST http://localhost:8080/WebGoat/auth-bypass/mfa/bruteforce-otp \
+    -d "otp=$i" -b "JSESSIONID=YOUR_SESSION")
+  if echo "$result" | grep -q "lessonCompleted.*true"; then
+    echo "OTP found: $i"
+    break
+  fi
+done
+----
+
+[NOTE]
+====
+*Defence:* After 3–5 failed OTP attempts, lock the current OTP (mark it consumed), invalidate the
+session, and require the user to restart the authentication flow. Combine with an exponential
+backoff delay and CAPTCHA for endpoints exposed on the public internet.
+====

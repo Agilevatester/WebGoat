@@ -1,0 +1,48 @@
+
+== Real-World Authentication Bypass Case Studies
+
+Authentication bypasses are not theoretical. The examples below are real CVEs and public exploits that demonstrate the same categories of flaws you will practise in this lesson.
+
+---
+
+=== Case Study 1 — Missing Authentication Check
+*Progress Telerik Report Server · CVE-2024-4358 · EDB-52103*
+
+*Vulnerability class:* Improper access control (missing authentication enforcement on a sensitive endpoint)
+
+The `/Startup/Register` registration endpoint in Telerik Report Server was accessible without any authentication. An attacker could POST to this endpoint and self-register an account, receiving a valid JWT token in return. That token was then used to upload a malicious report file containing a deserialized payload, resulting in Remote Code Execution.
+
+*Key lesson:* Every sensitive endpoint must explicitly verify that the caller is authenticated. Relying on the UI to hide the link is not a security control — a direct HTTP request bypasses the UI entirely.
+
+---
+
+=== Case Study 2 — Rate-Limit Bypass via Header Spoofing
+*Bludit CMS 3.9.2 · No CVE · EDB-49037*
+
+*Vulnerability class:* Brute-force protection bypass (IP-based rate limiting defeated by `X-Forwarded-For` header injection)
+
+Bludit's login brute-force protection tracked the client's IP address and blocked it after a fixed number of failed attempts. Because the application trusted the user-supplied `X-Forwarded-For` header to determine the originating IP, an attacker could rotate a fresh spoofed IP address with every request. Combined with CSRF token extraction and session cookie handling, this allowed unlimited password guessing.
+
+*Key lesson:* Never trust client-supplied headers (`X-Forwarded-For`, `X-Real-IP`) to make security decisions. If you must honour them (e.g. behind a load balancer), ensure only the trusted proxy can set them.
+
+---
+
+=== Case Study 3 — Path Traversal Authentication Bypass
+*JetBrains TeamCity < 2023.11.4 · CVE-2024-27198 · EDB-52411*
+
+*Vulnerability class:* Authentication bypass via URL path crafting (JSP request routing flaw)
+
+TeamCity's authentication middleware failed to protect REST API endpoints when the request URL contained a path-traversal-style suffix targeting the JSP handler — for example, `/idontexist?jsp=/app/rest/users;.jsp`. The routing layer executed the REST action while the authentication gate was never invoked. An unauthenticated attacker used this to create a new administrator account, gaining full control of the CI/CD server.
+
+*Key lesson:* Authentication enforcement must be centralised (e.g. a servlet filter or Spring Security filter chain) and applied uniformly to all request paths. Endpoint-level checks or pattern-matching on URLs are fragile and easily bypassed by encoding or routing tricks.
+
+---
+
+=== Common Thread
+
+All three exploits share the same root cause: **the authentication check was skippable by the attacker**. Whether by omitting a parameter, spoofing a header, or crafting a URL, the attacker found a path through the application that avoided the intended security gate. The exercises in this lesson reproduce this pattern at a smaller scale so you can see exactly how it works.
+
+[TIP]
+====
+When reviewing an application for authentication bypass, ask: *"Is there any way to reach this resource without passing through the authentication check?"* If the answer is yes — even in an unlikely path — that is a vulnerability.
+====

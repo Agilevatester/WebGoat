@@ -1,0 +1,203 @@
+
+== Multi-Factor Authentication — Concepts and Bypass Techniques
+
+=== What is MFA?
+
+Multi-Factor Authentication (MFA) requires a user to prove their identity using two or more
+independent factors before being granted access:
+
+* *Something you know* — password, PIN, security question answer
+* *Something you have* — hardware token, authenticator app, SMS code, email link
+* *Something you are* — fingerprint, face recognition
+
+Adding a second factor dramatically reduces the value of stolen credentials alone. However, a
+poorly implemented MFA flow can be defeated without ever having access to the second-factor device.
+
+=== Spring Security 7 MFA Support
+
+Spring Security 7 introduced first-class MFA support built around *factor-aware session state*.
+After each successful authentication step, a `FactorGrantedAuthority` is added to the session:
+
+[source,java]
+----
+// Configuration — both factors required globally
+@Configuration
+@EnableMultiFactorAuthentication(authorities = {
+    FactorGrantedAuthority.PASSWORD_AUTHORITY,   // granted after form login
+    FactorGrantedAuthority.OTT_AUTHORITY         // granted after OTP/magic-link
+})
+public class SecurityConfig { }
+
+// SecurityFilterChain
+@Bean
+SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    return http
+        .formLogin(withDefaults())           // grants FACTOR_PASSWORD on success
+        .oneTimeTokenLogin(withDefaults())    // grants FACTOR_OTT on success
+        .authorizeHttpRequests(auth -> auth
+            .anyRequest().authenticated()
+        )
+        .build();
+}
+----
+
+Between step 1 (password) and step 2 (OTP), the user is *half-authenticated*: the session holds
+`FACTOR_PASSWORD` but not `FACTOR_OTT`. Spring Security automatically rejects access to any
+endpoint requiring both factors and redirects the user to complete the missing step.
+
+Custom OTP delivery (email, SMS) is implemented via `OneTimeTokenGenerationSuccessHandler`:
+
+[source,java]
+----
+@Component
+public class OtpEmailHandler implements OneTimeTokenGenerationSuccessHandler {
+    @Override
+    public void handle(HttpServletRequest req, HttpServletResponse res,
+                       OneTimeToken token) throws IOException, ServletException {
+        String magicLink = "https://app.example.com/login/ott?token=" + token.getTokenValue();
+        emailService.send(userEmail, "Your login code", magicLink);
+        // Token MUST NOT appear in the HTTP response — only in the email/SMS
+        new RedirectOneTimeTokenGenerationSuccessHandler("/ott/sent")
+            .handle(req, res, token);
+    }
+}
+----
+
+---
+
+=== 10 MFA Bypass Techniques
+
+The exercises in this module demonstrate the most impactful of these real-world bypass classes.
+
+[cols="1,3,2"]
+|===
+|#|Technique|Root Cause
+
+|1
+|*Force Browse / State Skip* — complete step 1, then directly access the protected resource
+without completing the OTP step.
+|Server does not check that all factor authorities are present before granting access. The session
+flag for step 2 is never verified.
+
+|2
+|*OTP Leakage in HTTP Response* — the server includes the OTP in the response body as debug
+output, allowing any browser user to read it from DevTools.
+|Developer mistake: OTP written to the response instead of being delivered exclusively through the
+out-of-band channel.
+
+|3
+|*OTP Brute Force* — no rate limiting or lockout on the OTP submission endpoint; an automated
+script exhausts all possible values (10^6 for a 6-digit code).
+|Missing progressive friction on the verification endpoint (no attempt counter, no lockout, no
+CAPTCHA).
+
+|4
+|*Account Recovery Bypass* — password reset or email change flows grant a fully-authenticated
+session without requiring the second factor.
+|MFA is enforced only on the normal login path; recovery flows are implemented separately and skip
+the MFA check.
+
+|5
+|*Backup Code Abuse* — backup codes are stored in plaintext and retrievable without MFA re-auth,
+or their endpoint lacks authorisation.
+|Backup codes not hashed, regeneration endpoint missing step-up authentication requirement.
+
+|6
+|*CSRF to Disable MFA* — a malicious page silently POSTs to the "disable MFA" endpoint while the
+victim is logged in.
+|Missing CSRF tokens and `SameSite=Strict` cookie attribute on state-changing MFA management
+endpoints.
+
+|7
+|*Weak Remember-Me Token* — the "trust this device" token is guessable or not bound to the
+device, allowing an attacker to skip MFA on subsequent logins.
+|Remember-me tokens derived algorithmically rather than randomly generated and stored server-side.
+
+|8
+|*Legacy Endpoint / Unprotected Subdomain* — an older API version or mobile backend does not
+enforce MFA, but the issued session token is valid on the main application.
+|MFA enforced per-endpoint rather than centrally; old API versions not decommissioned.
+
+|9
+|*OAuth Account Linking Pitfall* — an attacker links a third-party identity provider to the
+victim's account without reauthentication, then logs in via OAuth to bypass MFA.
+|Account-linking endpoint does not require step-up authentication from the account owner.
+
+|10
+|*Client-Side Logic Trust / Response Manipulation* — the frontend makes an authorisation decision
+based on an API response field (`"mfaComplete": false`); an attacker intercepts and changes it
+to `true`.
+|Server issues a valid session/token regardless of the field value; authorisation enforced
+client-side rather than server-side on every subsequent request.
+|===
+
+=== Implementation Status in This Module
+
+[cols="1,3,1,2"]
+|===
+|#|Technique|Exercise|Notes
+
+|1
+|Force Browse / State Skip
+|✅ Interactive
+|`MfaStateSkipEndpoint` — server checks step 1 flag only
+
+|2
+|OTP Leakage in HTTP Response
+|✅ Interactive
+|`MfaOtpLeakEndpoint` — OTP in response debug comment
+
+|3
+|OTP Brute Force (No Rate Limiting)
+|✅ Interactive
+|`MfaBruteForceEndpoint` — unlimited submissions accepted
+
+|4
+|Recovery Flow Bypass
+|✅ Interactive
+|`MfaRecoveryBypassEndpoint` — recovery path skips MFA
+
+|5
+|Backup Code Abuse
+|✅ Interactive
+|`MfaBackupCodeEndpoint` — codes exposed without step-up auth
+
+|6
+|CSRF to Disable MFA
+|⚠️ Not implemented
+|WebGoat disables CSRF globally (`csrf.disable()`). While this makes the app exploitable, a
+self-contained CSRF exercise requires a separate attacker page outside the lesson iframe —
+beyond the scope of this module.
+
+|7
+|Weak Remember-Me Token
+|⚠️ Not implemented
+|Requires token issuance and validation infrastructure across multiple requests; complex to
+wire cleanly into a single WebGoat assignment endpoint.
+
+|8
+|Legacy Endpoint
+|⚠️ Not implemented
+|Conceptually identical to Technique 4 (unprotected path grants full access). Study
+Technique 4's exercise to understand the root cause.
+
+|9
+|OAuth Account Linking Pitfall
+|🔲 Planned (WebWolf)
+|Requires a simulated OAuth provider. WebWolf (the companion attacker app) can provide a
+lightweight mock OAuth server — see the next planned extension.
+
+|10
+|Client-Side Trust / Response Manipulation
+|✅ Interactive
+|`MfaClientTrustEndpoint` — server trusts client-supplied `mfaVerified` parameter
+|===
+
+[TIP]
+====
+*Spring Security 7 eliminates Techniques 1, 3, 6, and 10 by design* when configured with
+`@EnableMultiFactorAuthentication`: factor authorities are checked server-side on every request
+(#1, #10), tokens are invalidated after one use (#3), and CSRF tokens protect state-changing
+endpoints by default (#6). Techniques 2, 4, 5, 7, 8, and 9 require application-level controls
+beyond what the framework provides out of the box.
+====

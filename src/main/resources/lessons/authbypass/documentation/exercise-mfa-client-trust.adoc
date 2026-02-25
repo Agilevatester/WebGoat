@@ -1,0 +1,59 @@
+
+== Exercise: Client-Side Trust / Parameter Injection
+_DeepStrike Technique 10_
+
+=== The Vulnerability
+
+The server delegates the MFA completion decision to the client. The login form includes a hidden
+field `mfaVerified` set to `false`. After the frontend validates the OTP (via a JavaScript API
+call), it is supposed to set this field to `true` and resubmit the form. The server reads the
+field value and grants access accordingly.
+
+This is fundamentally broken: the client can set `mfaVerified=true` regardless of whether the OTP
+was actually validated. The server has no way to distinguish a legitimate OTP verification from a
+fabricated request.
+
+[source,java]
+----
+// VULNERABLE server-side check:
+if ("true".equalsIgnoreCase(request.getParameter("mfaVerified"))) {
+    grantAccess();   // trusts whatever the client sent
+}
+
+// CORRECT approach:
+// The server calls OneTimeTokenService.consume(token) itself and stores the
+// result in a server-side session attribute. The client never touches this flag.
+----
+
+=== The Scenario
+
+The login form below accepts `username`, `password`, and a hidden `mfaVerified` field. The server
+validates the credentials but then checks `mfaVerified` to determine whether MFA passed.
+
+*Credentials:* `admin` / `password123`
+
+*Your goal:* Submit the form with `mfaVerified=true` to bypass the MFA check.
+
+=== How to Approach It
+
+*Using Developer Tools (Elements tab):*
+
+1. Open DevTools (F12) → *Elements* tab.
+2. Find the hidden input: `<input type="hidden" name="mfaVerified" value="false" />`.
+3. Double-click the `false` value and change it to `true`.
+4. Fill in the credentials and submit.
+
+*Using the Network tab (Edit & Resend):*
+
+1. Submit the form once with correct credentials and `mfaVerified=false`.
+2. In the Network tab, right-click the request → *Edit & Resend*.
+3. Change `mfaVerified=false` to `mfaVerified=true` in the request body.
+4. Send the modified request.
+
+[NOTE]
+====
+*Defence:* The server must be the sole authority on authentication state. OTP verification must
+happen server-side (call `OneTimeTokenService.consume()` or equivalent), and the result must be
+stored in a server-managed session attribute — never in a client-supplied request parameter,
+cookie, or response field that the client can manipulate.
+====

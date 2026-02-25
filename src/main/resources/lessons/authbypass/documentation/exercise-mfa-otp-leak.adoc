@@ -1,0 +1,57 @@
+
+== Exercise: OTP Leakage in HTTP Response
+_DeepStrike Technique 2_
+
+=== The Scenario
+
+The application implements a two-factor login flow. After the first factor (username/email), it
+generates a one-time password and "sends" it to the user's registered email address. The OTP
+should travel exclusively through that out-of-band channel — the HTTP response should only
+acknowledge that the code was dispatched.
+
+*The vulnerability:* A developer added a debug line that embeds the OTP value in the HTTP
+response body as an HTML comment:
+
+[source]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "feedback": "A one-time code has been dispatched to the registered email address.",
+  "output": "... <!-- DEBUG otp_value=XXXX remove before production -->"
+}
+----
+
+That comment was never removed. Anyone who opens their browser's DevTools (Network tab) and reads
+the raw response can retrieve the OTP without access to the victim's email account.
+
+This is how the Spring Security 7 `OneTimeTokenGenerationSuccessHandler` interface is *supposed*
+to work:
+
+[source,java]
+----
+@Override
+public void handle(HttpServletRequest req, HttpServletResponse res,
+                   OneTimeToken token) throws IOException, ServletException {
+    // Token goes ONLY to the email — never into the HTTP response
+    emailService.send(userEmail, token.getTokenValue());
+    redirectHandler.handle(req, res, token);   // redirect to /ott/sent
+}
+----
+
+=== How to Exploit It
+
+1. Enter your username and click *Send OTP*.
+2. Open the browser's *Network* tab (F12 → Network).
+3. Select the POST request to `auth-bypass/mfa/send-otp` and inspect the *Response* body.
+4. Locate the OTP value in the debug comment.
+5. Enter that value in the *Verify OTP* form and submit.
+
+[NOTE]
+====
+*Defence:* Never include sensitive values in HTTP responses — not even in comments, custom headers,
+or JSON fields labelled "debug". Use structured logging (server-side only) guarded by log levels
+that are disabled in production. Review responses in staging with an intercepting proxy before any
+release.
+====

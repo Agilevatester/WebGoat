@@ -1,0 +1,39 @@
+
+== Exercise: Missing Authentication Check
+_Inspired by CVE-2024-4358 — Progress Telerik Report Server_
+
+=== Background
+
+In 2024, the Telerik Report Server exposed a `/Startup/Register` endpoint with no authentication
+requirement. This endpoint was intended for initial server setup (admin-only), but because no
+server-side authorisation check was enforced, any unauthenticated attacker could POST to it,
+self-register with admin-level credentials, and receive a valid session token — which was then
+used to chain into Remote Code Execution via malicious report upload.
+
+*Root cause:* The application relied on the UI to hide the link to the privileged action.
+Once an attacker discovered the endpoint's URL (through documentation, JavaScript analysis, or
+simple guessing), the server blindly accepted any supplied parameter — including `role=admin`.
+
+=== The Scenario
+
+A company's user registration page submits the form to `/auth-bypass/missing-auth-register`. The
+UI only shows fields for username and email. The `role` field is set to `user` via a hidden HTML
+input — and the server trusts whatever value the client sends.
+
+*Your goal:* Register yourself as an administrator without modifying any server-side code.
+
+=== How to Approach It
+
+1. Open your browser's *Developer Tools* (F12) and navigate to the *Elements* tab.
+2. Submit the registration form once and observe the request in the *Network* tab.
+3. Locate the hidden `role` input in the form HTML.
+4. Change its value from `user` to `admin` (DevTools → Elements → double-click the value, or use
+   the Network tab's *Edit & Resend* feature, or an intercepting proxy).
+5. Submit the modified request.
+
+[NOTE]
+====
+*Defence:* The server must enforce the maximum privilege level the caller is allowed to grant.
+Client-supplied role values must either be ignored (assign a safe default server-side) or
+validated against the caller's own verified session role. UI visibility is not a security control.
+====

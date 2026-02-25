@@ -59,6 +59,9 @@ public class WebSecurityConfig {
                       "/PasswordReset/**")
                   .permitAll();
               auth.requestMatchers(HttpMethod.POST, "/files", "/mail", "/requests").permitAll();
+              // OAuth mock server — token and userinfo are called server-to-server by WebGoat
+              // without a WebWolf browser session; authorize/approve need browser reachability.
+              auth.requestMatchers("/oauth2/**").permitAll();
               auth.anyRequest().authenticated();
             })
         .csrf(csrf -> csrf.disable())

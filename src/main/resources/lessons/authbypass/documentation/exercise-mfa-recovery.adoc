@@ -1,0 +1,47 @@
+
+== Exercise: Recovery Flow Bypass
+_DeepStrike Technique 4_
+
+=== The Vulnerability
+
+MFA is enforced on the primary login path. The account recovery (password reset) path, however,
+was implemented independently and does not require the second factor. An attacker who knows the
+target's registered email address can use the recovery flow to obtain a fully-authenticated
+session without ever possessing the OTP device.
+
+This flaw appears frequently when MFA is added to an existing application as an afterthought.
+The original recovery flow was built without MFA awareness, and the new MFA requirement was only
+wired into the new login form — leaving the recovery path unguarded.
+
+=== The Scenario
+
+The primary login requires:
+
+1. `POST /auth-bypass/mfa/recovery-login-step1` → credentials (`admin` / `adminpass`)
+2. A 6-digit OTP dispatched to the registered device (you cannot access the device)
+
+The application also offers account recovery for users who cannot access their device. This
+recovery path is the vulnerability.
+
+*Your goal:* Access the account without the OTP by using the recovery path.
+
+=== Credentials and Account Info
+
+* Username: `admin`
+* Password: `adminpass`
+* Registered email: `admin@webgoat.org`
+
+=== How to Approach It
+
+1. Submit credentials using Step 1 (this is optional — you can skip it entirely).
+2. Observe the response: it mentions account recovery as an alternative.
+3. POST directly to the recovery endpoint with the registered email address.
+4. The recovery endpoint grants full access without any OTP verification.
+
+[NOTE]
+====
+*Defence:* Account recovery must apply the same or stronger authentication requirements as the
+normal login. Use a time-limited signed recovery token delivered via email, require the user to
+set up a new second factor before granting access, and invalidate all existing sessions when
+recovery is used. Never grant a fully-privileged session based on an email address alone.
+====

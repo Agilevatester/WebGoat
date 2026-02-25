@@ -1,0 +1,33 @@
+
+== 2FA Bypass via Parameter Omission
+
+=== Background
+
+Two-Factor Authentication (2FA) adds a second verification step — typically a one-time password (OTP) sent to a registered device — on top of the usual username/password credential check.
+
+When 2FA is implemented poorly, the server may only validate the OTP *if the parameter is included in the request*. An attacker who intercepts the HTTP request and removes the parameter entirely can trick the server into skipping the check altogether.
+
+This is precisely what happened in the 2016 PayPal 2FA bypass: a security researcher removed the security-question parameters from the POST body and was granted access without answering a single question.
+
+=== The Scenario
+
+You have already authenticated with your username and password (first factor). The application now requires you to enter a one-time code sent to your registered mobile device.
+
+*Problem:* Your phone is unavailable. You cannot receive the code.
+
+*Goal:* Bypass the second-factor check and gain access to the account anyway.
+
+=== How to Approach It
+
+Use your browser's built-in developer tools or an intercepting proxy (e.g. OWASP ZAP, Burp Suite) to:
+
+1. Open the **Network** tab before submitting the form.
+2. Submit the 2FA form and locate the POST request to `auth-bypass/2fa-verify`.
+3. Inspect the request body — note which parameters are sent.
+4. Resend the request with one or more parameters removed or altered.
+5. Observe how the server responds to each variation.
+
+[NOTE]
+====
+The bypass works because of a common server-side logic error. The fix is to always require the parameter and reject its absence explicitly — never assume a missing value is safe to ignore.
+====

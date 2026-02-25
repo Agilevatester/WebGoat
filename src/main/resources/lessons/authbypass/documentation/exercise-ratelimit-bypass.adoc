@@ -1,0 +1,56 @@
+
+== Exercise: Brute-Force Rate-Limit Bypass
+_Inspired by EDB-49037 — Bludit CMS 3.9.2_
+
+=== Background
+
+Bludit CMS implemented a login brute-force protection mechanism that locked a client's IP address
+after a fixed number of failed attempts. The fatal flaw: the server resolved the client IP from the
+`X-Forwarded-For` HTTP request header, which is entirely attacker-controlled.
+
+By rotating the `X-Forwarded-For` value on every request — making each attempt appear to originate
+from a different IP — an attacker could perform unlimited password guessing without ever triggering
+the lockout.
+
+*Root cause:* Trusting client-supplied headers for security decisions. The `X-Forwarded-For`
+header is set by load balancers and reverse proxies, not by the actual client. Applications that
+expose a rate-limiting mechanism based on this header give attackers a free reset button.
+
+=== The Scenario
+
+The login endpoint below tracks failed attempts per *resolved client IP*. After **3 failures** the
+IP is locked and further requests are rejected — until the IP changes.
+
+*Credentials for this exercise:* `admin` / `tomcat` +
+(The point of the exercise is the bypass technique, not credential guessing.)
+
+*Your goal:* Get locked out, then bypass the rate limit to successfully log in.
+
+=== How to Approach It
+
+*Step 1 — Trigger the lockout:*
+
+Submit the login form with wrong credentials three times. The server will tell you your IP is
+locked.
+
+*Step 2 — Bypass using X-Forwarded-For:*
+
+Use one of the following methods to add or change the `X-Forwarded-For` header:
+
+* **Browser DevTools** → Network → right-click the request → *Edit & Resend* → add header
+  `X-Forwarded-For: 10.0.0.1`
+* **Intercepting proxy** (OWASP ZAP / Burp Suite) → intercept and inject the header
+* **curl:** `curl -X POST ... -H "X-Forwarded-For: 10.0.0.1" ...`
+
+*Step 3 — Log in:*
+
+Submit the correct credentials (`admin` / `tomcat`) with the spoofed header. Each different
+`X-Forwarded-For` value is treated as a new IP with a fresh attempt counter.
+
+[NOTE]
+====
+*Defence:* Only honour `X-Forwarded-For` when the request originates from a known, trusted
+reverse-proxy IP (configured server-side). From all other sources, use `request.getRemoteAddr()`
+exclusively. Alternatively, store rate-limit state in a way that cannot be spoofed
+(e.g. authenticated session ID + device fingerprint rather than IP alone).
+====

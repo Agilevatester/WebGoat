@@ -1,0 +1,46 @@
+
+== Exercise: MFA State Skip (Force Browse)
+_DeepStrike Technique 1_
+
+=== The Scenario
+
+You are looking at a two-factor login flow:
+
+[source]
+----
+Step 1: POST /auth-bypass/mfa/credentials  → verifies username + password
+                                             → sets session flag: FACTOR_PASSWORD ✓
+         ↓
+Step 2: [OTP form]                          → user enters code from their device
+                                             → should set session flag: FACTOR_OTT ✓
+         ↓
+Step 3: POST /auth-bypass/mfa/access        → protected resource (requires both flags)
+----
+
+*The vulnerability:* Step 3 (the protected resource) only checks that `FACTOR_PASSWORD` is in the
+session. It never verifies `FACTOR_OTT`. An attacker who completes step 1 and then directly
+accesses the protected resource — skipping the OTP form entirely — is granted full access.
+
+In a correct Spring Security 7 implementation, both `FactorGrantedAuthority.PASSWORD_AUTHORITY`
+and `FactorGrantedAuthority.OTT_AUTHORITY` must be present in the session before any protected
+resource is served.
+
+=== Credentials for this exercise
+
+* Username: `admin`
+* Password: `admin123`
+
+=== How to Exploit It
+
+1. Submit the credentials form (Step 1).
+2. When the form tells you an OTP was sent to your device — *do not enter an OTP*.
+3. Instead, click *Access Protected Resource* directly.
+4. The server grants access because it only verified the password factor.
+
+[NOTE]
+====
+*Defence:* Use `@EnableMultiFactorAuthentication` or `AuthorizationManagerFactories.multiFactor()`
+in your Spring Security filter chain. Never hand-roll factor checks on individual endpoints — a
+centralised, declarative approach ensures every request to every endpoint goes through the same
+factor verification logic.
+====

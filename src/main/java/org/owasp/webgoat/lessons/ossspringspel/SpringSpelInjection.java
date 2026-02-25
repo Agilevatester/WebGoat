@@ -20,21 +20,22 @@
  * Source for this application is maintained at https://github.com/WebGoat/WebGoat, a repository for free software projects.
  */
 
-package org.owasp.webgoat.lessons.osscamelsnakeyaml;
+package org.owasp.webgoat.lessons.ossspringspel;
 
 import org.owasp.webgoat.container.lessons.Category;
 import org.owasp.webgoat.container.lessons.Lesson;
 import org.springframework.stereotype.Component;
 
 @Component
-public class VulnerableCamelSnakeYamlComponents extends Lesson {
+public class SpringSpelInjection extends Lesson {
+
   @Override
   public Category getDefaultCategory() {
-    return Category.A6;
+    return Category.A3;
   }
 
   @Override
   public String getTitle() {
-    return "vulnerable-camel-snakeyaml-components.title";
+    return "spring-spel-injection.title";
   }
 }

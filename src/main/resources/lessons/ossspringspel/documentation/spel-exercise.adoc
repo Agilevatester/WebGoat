@@ -1,0 +1,43 @@
+
+== Challenge: Performance Review System
+
+=== Scenario
+
+You have discovered an internal HR application that allows managers to query employee performance
+reviews. The search form accepts several fields to filter and format results.
+
+A code review of the application revealed that it uses `SpelExpressionParser` somewhere in the
+request processing pipeline. However, *not all parameters are vulnerable* — some are handled
+safely as plain strings. Your task is to determine which parameter is evaluated as a SpEL
+expression and exploit it.
+
+=== Objective
+
+The server generates a unique challenge token at startup. This token is stored server-side and
+*changes every time the application restarts* — it cannot be guessed.
+
+To complete this lesson:
+
+. Identify the vulnerable parameter through experimentation
+. Use SpEL injection to call a server-side method that returns the challenge token
+. Submit the token in the form below to prove code execution
+
+=== Guidance
+
+* Start by testing arithmetic expressions (e.g.,`2*3`, `7+1`) — a vulnerable parameter will
+  return the computed result rather than the literal string
+* The `T()` operator gives access to any Java class: `T(java.lang.Runtime)`, `T(java.lang.System)`
+* Information disclosure payloads (system properties, environment variables) are a good starting
+  point before escalating to command execution
+* The class you need to call is part of this application — examine the response carefully
+
+[WARNING]
+====
+*This challenge is designed to resist automated analysis.* The token is dynamic and server-specific.
+Static analysis of the lesson source or documentation will not reveal the correct answer —
+the token must be obtained by actually executing SpEL on the running server.
+====
+
+=== Hints
+
+Use the hint system (the lightbulb icon) if you get stuck. Hints are progressively more specific.

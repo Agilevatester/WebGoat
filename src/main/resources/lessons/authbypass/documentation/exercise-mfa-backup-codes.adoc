@@ -1,0 +1,40 @@
+
+== Exercise: Backup Code Abuse
+_DeepStrike Technique 5_
+
+=== The Vulnerability
+
+MFA backup codes are emergency credentials for when the primary device is unavailable. They should
+be treated with the same care as passwords:
+
+* Stored as *hashed* values (bcrypt), never in plaintext.
+* Revealed only once (at generation time) and never shown again.
+* Access to the reveal/regenerate endpoint must require *step-up authentication* (re-verifying
+  identity using both factors before displaying emergency codes).
+
+When any of these safeguards are missing, backup codes become a permanent, device-independent
+bypass for MFA.
+
+=== The Scenario
+
+The application exposes a backup-code management endpoint at
+`/auth-bypass/mfa/reveal-backup-codes`. This endpoint should require the user to have already
+completed full MFA (both factors). Instead, it requires no authentication at all — anyone who
+can reach the endpoint retrieves the plaintext backup codes.
+
+*Your goal:* Retrieve the backup codes and use one to authenticate.
+
+=== How to Approach It
+
+1. Click *Reveal Backup Codes*. The server returns the backup codes with no authentication check.
+2. Read one of the codes from the output section (format: `WGAT-XXXX`).
+3. Enter it in the *Login with Backup Code* form and submit.
+
+[NOTE]
+====
+*Defence:* The backup-code endpoint must check that `FACTOR_PASSWORD` AND `FACTOR_OTT` (or their
+equivalents) are both present in the session before displaying codes. When using Spring Security 7,
+protect the endpoint with `mfa.authenticated()` from `AuthorizationManagerFactories.multiFactor()`.
+Additionally: hash codes before storage, mark each as consumed after use, and send an email alert
+whenever a backup code is redeemed.
+====

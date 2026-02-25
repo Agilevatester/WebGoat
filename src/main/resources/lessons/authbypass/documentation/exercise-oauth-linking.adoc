@@ -1,0 +1,82 @@
+
+== Exercise: OAuth Account Linking Pitfall
+_DeepStrike Technique 9_
+
+=== The Vulnerability
+
+Many applications allow users to link a social or SSO identity (Google, GitHub, WebWolfSSO) to
+their existing local account. The linking step requires knowing *which local account* to bind the
+external identity to. The correct source for this is the *authenticated session* — the server looks
+up the currently logged-in user and records `(webwolfUsername → currentUserId)`.
+
+The vulnerability arises when the server instead reads the target `userId` from the request body
+or from the OAuth `state` parameter that the client controls:
+
+[source,java]
+----
+// VULNERABLE:
+String userId = request.getParameter("userId");   // attacker controls this
+linkIdentity(webwolfUsername, userId);            // links to ANY account
+
+// CORRECT:
+String userId = session.getAttribute("currentUserId");  // server-managed
+linkIdentity(webwolfUsername, userId);
+----
+
+Because the client supplies `userId`, an attacker can link their own OAuth identity to the
+**admin** account — then log in via OAuth to take over that account.
+
+=== The Scenario
+
+This application exposes two endpoints:
+
+* `POST /auth-bypass/oauth/complete-link` — accepts `webwolfUsername` and `userId` (client-supplied).
+  Links the WebWolfSSO identity to the specified local account.
+* `POST /auth-bypass/oauth/oauth-login` — grants access if the supplied `webwolfUsername` is
+  linked to the `admin` account.
+
+*Your goal:* Link your WebWolf identity to the `admin` account, then log in via OAuth.
+
+=== How to Approach It
+
+==== Step 1 — Complete the Link (with a tampered userId)
+
+Use the *Complete Link* form below:
+
+1. Enter any value for *WebWolf Identity* (e.g. `hacker`). This represents your WebWolfSSO username.
+2. In the *Target User ID* field, type `admin` instead of your own user ID.
+3. Click *Link Account*. The server will store the link `hacker → admin` without validating
+   that you are actually logged in as `admin`.
+
+In a real attack you would intercept the OAuth callback (before the server processes the `state`
+parameter) and replace `userId=yourId` with `userId=admin` in the request body or state.
+
+==== Step 2 — Log In via OAuth
+
+Use the *OAuth Login* form:
+
+1. Enter the same *WebWolf Identity* you used in Step 1 (e.g. `hacker`).
+2. Click *OAuth Login*. The server checks whether that identity is linked to `admin` — it is —
+   and grants access.
+
+[NOTE]
+====
+*Optional — Use the real WebWolfSSO flow:*
+
+You can also perform the full Authorization Code flow using the WebWolf mock OAuth server:
+
+1. Open: `http://localhost:9090/WebWolf/oauth2/authorize?client_id=webgoat&redirect_uri=http://localhost:8080/WebGoat/auth-bypass/oauth/complete-link&state=userId%3Dhacker&response_type=code`
+2. On the consent page, enter any WebWolf username and click *Approve*.
+3. WebWolf redirects to the callback. Copy the `code` value from the redirected URL.
+4. POST to `/auth-bypass/oauth/complete-link` with `code=<code>&webwolfUsername=hacker&userId=admin`.
+
+This illustrates how an attacker intercepts the redirect and changes `userId` in the request.
+====
+
+[NOTE]
+====
+*Defence:* The `userId` to link must come exclusively from the server-side session set during the
+OAuth initiation step — never from a client-supplied parameter, cookie, or `state` value. Validate
+the `state` parameter using a cryptographically signed token (e.g. HMAC-SHA256 with a server
+secret) so it cannot be tampered with between initiation and callback.
+====

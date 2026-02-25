@@ -1,0 +1,77 @@
+
+== Exercise: Path-Based Authentication Bypass
+_Inspired by CVE-2024-27198 — JetBrains TeamCity < 2023.11.4_
+
+=== Background
+
+JetBrains TeamCity contained a critical (CVSS 9.8) authentication bypass. A security filter
+checked `request.getRequestURI()` using pattern matching to decide whether to require
+authentication. An attacker crafted a URL that the filter classified as unprotected — but the
+server's internal routing engine still dispatched it to a protected REST endpoint:
+
+[source]
+----
+POST /idontexist?jsp=/app/rest/users;.jsp
+----
+
+The filter saw `/idontexist` (no match → no auth required). The JSP handler parsed the `jsp`
+query parameter and executed `/app/rest/users`, creating a new admin account. The authentication
+gate was never reached. CVSS 9.8, fully unauthenticated.
+
+=== The Root Cause
+
+Authentication was enforced by a filter that pattern-matched on the **raw URL string** before
+the server's routing layer decoded and normalised the path. These two steps happened in the wrong
+order:
+
+[source]
+----
+Request →  [Auth Filter: string check on raw URI]
+               ↓  (passes if raw string looks safe)
+           [Routing: decodes path, strips ;params, collapses //, etc.]
+               ↓
+           [Controller: executes with admin privileges]
+----
+
+Any URL manipulation that makes the raw string look safe but resolves to a protected path after
+normalisation constitutes a bypass.
+
+=== The Scenario
+
+The form below sends a `requestedPath` value to the server. A simulated WAF checks the raw value
+against an exact blocklist. The server then normalises the path (the same way a real framework
+router does) and executes the request. The admin resource is at `/admin`.
+
+*Your goal:* Access `/admin` without being blocked by the WAF.
+
+=== How to Approach It
+
+The WAF blocks the exact string `/admin`. Try variants that normalise to `/admin` after the
+filter has already passed:
+
+[cols="1,2,1"]
+|===
+|Technique |Example input |After normalisation
+
+|Semicolon path parameter
+|`/admin;.css`
+|`/admin`
+
+|Double slash
+|`//admin`
+|`/admin`
+
+|Percent-encoded character
+|`/%61dmin`
+|`/admin`
+|===
+
+Submit the modified `requestedPath` using the form field directly (or intercept with a proxy).
+
+[NOTE]
+====
+*Defence:* Normalise (decode percent-encoding, strip path parameters, collapse slashes) the URL
+**before** any security check. Better yet, use a centralised authentication framework
+(e.g. Spring Security's filter chain) that operates on the fully-resolved path, so hand-rolled
+pattern matching is never in the critical path.
+====
