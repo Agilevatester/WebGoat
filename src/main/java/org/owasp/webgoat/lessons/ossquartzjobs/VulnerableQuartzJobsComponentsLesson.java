@@ -37,41 +37,50 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Background task scheduling service.
+ *
+ * <p>Accepts task definitions and trigger configurations from clients and schedules them using the
+ * Quartz scheduler. An optional task name and trigger group can be supplied for organisational
+ * purposes. A separate status endpoint returns the current scheduler state.
+ */
 @RestController
 @AssignmentHints({"vulnerable-quartz-jobs.hint"})
 public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(VulnerableQuartzJobsComponentsLesson.class.getName());
 
-  @PostMapping("/VulnerableQuartzJobsComponentsLesson/CVE-2023-39017")
-  public @ResponseBody AttackResult index(@RequestParam("jobConfig") String jobConfig) {
+  /**
+   * Schedules a background task using the supplied task definition.
+   *
+   * <p>The {@code taskDefinition} is used to configure the JMS connection factory binding for the
+   * scheduled job. Additional parameters ({@code taskName}, {@code triggerGroup}) are used for
+   * organisational labelling within the scheduler.
+   *
+   * @param taskDefinition  task configuration string, forwarded to the JMS connection factory
+   * @param taskName        display name for the scheduled task (organisational, display only)
+   * @param triggerGroup    trigger group name for the scheduler (organisational, display only)
+   */
+  @PostMapping("/scheduler/task")
+  public @ResponseBody AttackResult index(
+      @RequestParam("taskDefinition") String taskDefinition,
+      @RequestParam(required = false, defaultValue = "default-task") String taskName,
+      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup) {
 
     try {
-      log.info("Received a request for API version: {}", jobConfig);
-      System.out.println(" Received a request for API version " + jobConfig);
+      log.info("Scheduling task: name={}, group={}", taskName, triggerGroup);
 
       Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
       scheduler.start();
-      JobDetail jobDetail = newJob(HelloJob.class).build();
-      jobDetail.getJobDataMap().put("jobId", jobConfig);
-      jobDetail.getJobDataMap().put("jms.connection.factory", "ldap://localhost:9001/Evil");
 
-      //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
-
-      //      org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new
-      // org.quartz.jobs.ee.jms.SendQueueMessageJob();
-
-      jobDetail = newJob(SendQueueMessageJob.class).build();
-      jobDetail.getJobDataMap().put("jms.connection.factory", jobConfig);
-      jobDetail.getJobDataMap().put("jms.connection.factory", "ldap://localhost:9001/Evil");
+      JobDetail jobDetail = newJob(SendQueueMessageJob.class).build();
+      jobDetail.getJobDataMap().put("taskId", taskDefinition);
+      jobDetail.getJobDataMap().put("jms.connection.factory", taskDefinition);
 
       Trigger trigger =
           TriggerBuilder.newTrigger()
-              //     .withIdentity(jobName, groupName)
               .startNow()
               .build();
-
-      // Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
 
       scheduler.scheduleJob(jobDetail, trigger);
       Thread.sleep(1000);
@@ -91,50 +100,39 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
 
     return failed(this)
         .feedback("vulnerable-quartz-jobs-components.fromXML")
-        .feedbackArgs(jobConfig)
+        .feedbackArgs(taskDefinition)
         .build();
   }
 
-  public static void main(String[] args) throws Exception {
-    Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
-    scheduler.start();
-    JobDetail jobDetail = newJob(HelloJob.class).build();
-    jobDetail.getJobDataMap().put("jobId", "Hello");
+  /**
+   * Returns the current scheduler operational status (decoy).
+   *
+   * <p>Accepts a task name and trigger group for filtering the status view. No task execution
+   * or deserialization of untrusted content occurs on this path.
+   *
+   * @param taskName      task name to filter by (display only)
+   * @param triggerGroup  trigger group to scope the status view (display only)
+   */
+  @PostMapping("/scheduler/status")
+  public @ResponseBody AttackResult schedulerStatus(
+      @RequestParam(required = false, defaultValue = "") String taskName,
+      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup) {
 
-    //  Trigger trigger = newTrigger().startNow().withSchedule(repeatSecondlyForever(2)).build();
-
-    //    org.quartz.jobs.ee.jms.SendQueueMessageJob jmsJob=new
-    // org.quartz.jobs.ee.jms.SendQueueMessageJob();
-
-    jobDetail = newJob(SendQueueMessageJob.class).build();
-
-    String jobName = "demo1"; // Your Job Name
-    String groupName = "demo"; // Your Job Group
-    Trigger trigger =
-        TriggerBuilder.newTrigger()
-            //     .withIdentity(jobName, groupName)
-            .startNow()
-            .build();
-
-    // Trigger trigger = newTrigger().startNow().withSchedule(simpleSchedule()).build();
-
-    scheduler.scheduleJob(jobDetail, trigger);
-    Thread.sleep(1000);
-    scheduler.shutdown();
+    log.info("Scheduler status: task={}, group={}", taskName, triggerGroup);
+    return failed(this)
+        .output("Scheduler running. Active group: " + triggerGroup
+            + (taskName.isEmpty() ? "" : " | Task: " + taskName))
+        .build();
   }
 
-  public static class HelloJob implements Job {
-    Logger log = LoggerFactory.getLogger(HelloJob.class.getName());
+  public static class DiagnosticJob implements Job {
+    Logger log = LoggerFactory.getLogger(DiagnosticJob.class.getName());
 
     @Override
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-      log.info("HelloJob executed");
-      System.out.println(" Job Scheduler");
-      System.out.println(
-          "Job Details Map --> "
-              + jobExecutionContext.getJobDetail().getJobDataMap().getString("jobId"));
-      //      jobExecutionContext.getJobDetail().getJobDataMap()
-
+      log.info("DiagnosticJob executed");
+      String taskId = jobExecutionContext.getJobDetail().getJobDataMap().getString("taskId");
+      log.info("Task ID: {}", taskId);
     }
   }
 }

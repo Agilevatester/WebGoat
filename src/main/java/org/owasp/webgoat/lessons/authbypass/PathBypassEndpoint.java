@@ -31,26 +31,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Path Traversal Authentication Bypass — inspired by CVE-2024-27198 (JetBrains TeamCity).
+ * Resource access gateway service.
  *
- * <p>In the real vulnerability the TeamCity authentication filter checked {@code
- * request.getRequestURI()} using string pattern matching. An attacker crafted URLs such as
- * {@code /idontexist?jsp=/app/rest/users;.jsp}: the filter saw {@code /idontexist} (an
- * unprotected path) while the JSP handler resolved and executed {@code /app/rest/users},
- * granting unauthenticated admin access.
+ * <p>Routes resource access requests through a two-stage path evaluation pipeline. An ingress
+ * filter inspects the raw request path before it is passed to the routing layer. The routing
+ * layer normalises the path before resolving the target resource.
  *
- * <p>This exercise simulates the root cause at the parameter level: a "WAF" checks the raw
- * {@code requestedPath} value using exact string comparison against {@code /admin}. The server
- * then resolves the path through normalisation (stripping semicolons, decoding percent-encoding,
- * collapsing double slashes) — the same steps a real framework router would perform. A path that
- * looks harmless to the WAF can resolve to {@code /admin} after normalisation.
- *
- * <p>Valid bypass inputs include:
- * <ul>
- *   <li>{@code /admin;.css} — semicolon path parameter stripped by the server</li>
- *   <li>{@code //admin} — double slash collapsed to single slash</li>
- *   <li>{@code /%61dmin} — percent-encoded {@code a} decoded to produce {@code /admin}</li>
- * </ul>
+ * <p>A diagnostics endpoint accepts the same path parameter for dry-run path normalisation
+ * without accessing any protected resources.
  */
 @RestController
 @AssignmentHints({
@@ -60,6 +48,15 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class PathBypassEndpoint extends AssignmentEndpoint {
 
+  /**
+   * Resource access endpoint.
+   *
+   * <p>Passes the requested path through the ingress filter before forwarding it to the routing
+   * layer. The filter and the router operate on different representations of the same path value,
+   * which may produce different evaluation outcomes for the same input.
+   *
+   * @param requestedPath  path of the resource to access
+   */
   @PostMapping(
       path = "/auth-bypass/path-bypass",
       produces = {"application/json"})
@@ -70,55 +67,70 @@ public class PathBypassEndpoint extends AssignmentEndpoint {
       return failed(this).feedback("auth-bypass.path.empty").build();
     }
 
-    // VULNERABILITY: The simulated WAF/auth filter performs a raw exact-match check
-    // on the user-supplied path string before any normalisation occurs. This mirrors
-    // a pattern-matching security filter that runs before the URL is decoded/resolved.
+    // Ingress filter: evaluates the raw path value
     if ("/admin".equals(requestedPath)) {
       return failed(this)
           .feedback("auth-bypass.path.blocked")
-          .output("The security filter blocked the direct request to /admin.")
+          .output("The ingress filter blocked access to this resource.")
           .build();
     }
 
-    // The server normalises the path AFTER the security filter has already passed —
-    // exactly as happened in CVE-2024-27198 where routing happened post-filter.
+    // Routing layer: normalises the path before resolving the target
     String resolvedPath = normalizePath(requestedPath);
 
     if ("/admin".equals(resolvedPath)) {
-      // The raw value bypassed the WAF; the resolved value is still /admin.
       return success(this)
           .feedback("auth-bypass.path.success")
           .output(
-              "Raw input: '"
+              "Submitted path: '"
                   + requestedPath
                   + "' → resolved: '"
                   + resolvedPath
-                  + "'. The filter never saw /admin, but the server executed it.")
+                  + "'. The filter passed the request; the router resolved it to the protected resource.")
           .build();
     }
 
     return failed(this)
         .feedback("auth-bypass.path.not-admin")
-        .output("Resolved path: '" + resolvedPath + "' — does not map to the admin resource.")
+        .output("Resolved path: '" + resolvedPath + "' — resource not found.")
         .build();
   }
 
   /**
-   * Simulates server-side path normalisation that runs AFTER the security filter.
+   * Path normalisation diagnostics endpoint (decoy).
+   *
+   * <p>Accepts a path and returns its normalised form without performing any access control
+   * evaluation. Intended for debugging the routing layer's normalisation behaviour.
+   *
+   * @param requestedPath  path to normalise
+   * @param traceMode      whether to include step-by-step normalisation trace in the output
+   */
+  @PostMapping(
+      path = "/auth-bypass/path-diagnostics",
+      produces = {"application/json"})
+  @ResponseBody
+  public AttackResult pathDiagnostics(
+      @RequestParam(required = false, defaultValue = "/data") String requestedPath,
+      @RequestParam(required = false, defaultValue = "false") String traceMode) {
+
+    String resolved = normalizePath(requestedPath);
+    return failed(this)
+        .output("Input: '" + requestedPath + "' → Normalised: '" + resolved + "'")
+        .build();
+  }
+
+  /**
+   * Server-side path normalisation — runs after the ingress filter.
    *
    * <ul>
-   *   <li>Step 1 — strip semicolon path parameters: {@code /admin;.css} → {@code /admin}</li>
-   *   <li>Step 2 — decode common percent-encoded characters: {@code %61} / {@code %41} → {@code a}
-   *   </li>
-   *   <li>Step 3 — collapse consecutive slashes: {@code //admin} → {@code /admin}</li>
+   *   <li>Strips semicolon path parameters (e.g. {@code /path;ext} → {@code /path})</li>
+   *   <li>Decodes percent-encoded characters ({@code %61} / {@code %41} → {@code a})</li>
+   *   <li>Collapses consecutive slashes ({@code //path} → {@code /path})</li>
    * </ul>
    */
   private String normalizePath(String raw) {
-    // Strip semicolon path-parameters (RFC 2396 §3.3)
     String result = raw.contains(";") ? raw.substring(0, raw.indexOf(';')) : raw;
-    // Decode percent-encoded 'a' / 'A' (simplified for lesson clarity)
     result = result.replace("%61", "a").replace("%41", "A");
-    // Collapse repeated slashes
     result = result.replaceAll("/+", "/");
     return result;
   }

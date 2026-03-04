@@ -3,7 +3,7 @@ package org.owasp.webgoat.lessons.ossspringmongodb;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+// import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 /**
  * MongoDB configuration for the CVE-2022-22980 lesson.
@@ -21,7 +21,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
  * startup so that the CVE-2022-22980 lesson has data to query against.
  */
 @Configuration
-@EnableMongoRepositories(basePackageClasses = CustomerRepository.class)
+// @EnableMongoRepositories(basePackageClasses = CustomerRepository.class)
 public class MongoDbLessonConfig {
 
   /**

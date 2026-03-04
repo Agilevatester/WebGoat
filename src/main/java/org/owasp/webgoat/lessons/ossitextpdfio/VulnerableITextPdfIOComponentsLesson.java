@@ -23,11 +23,6 @@
 package org.owasp.webgoat.lessons.ossitextpdfio;
 
 import com.itextpdf.kernel.utils.CompareTool;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import org.owasp.webgoat.container.assignments.AssignmentEndpoint;
 import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
@@ -37,23 +32,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
-import org.verapdf.core.VeraPDFException;
-import org.verapdf.policy.PolicyChecker;
 
 /**
- * Description: An attacker controlling the filename passed to the CompareTool class, is able to
- * inject arbitrary parameters in the command line being executed (ghostscript). The vulnerable code
- * resides inside the com/itextpdf/io/util/GhostscriptHelper.java.
+ * Document comparison service.
  *
- * <p>//$ITEXT_GS_EXEC -dSAFER -dNOPAUSE -dBATCH -sDEVICE=png16m -r150 -sOutputFile="./cmp_xxx.pdf"
- * - yyyyy-%03d.png" "xxx.pdf" - yyyyy"
- *
- * <p>//-dNOSAFER overrides -dSAFER
- *
- * <p>//javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*" Example "xxx.pdf\"
- * -sstdout=a.txt" //DROPS a file called 'a.txt-%03d.png\ xxx.pdf\ -sstdout=a.txt' on the filesystem
- *
- * <p>a.txt-d.png\ xxx.pdf\ -sstdout=a.txt
+ * <p>Accepts two document references and performs a visual comparison between
+ * them. The result indicates the degree of divergence between the two documents.
+ * A supplementary report endpoint accepts the same parameters and returns
+ * a summary without performing a live comparison.
  */
 @RestController
 @AssignmentHints({"vulnerable-itextpdf-io.hint"})
@@ -61,31 +47,32 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableITextPdfIOComponentsLesson/CVE-2021-43113")
-  public @ResponseBody AttackResult NacosYamlParser(
-      @RequestParam String pdffile1,
-      @RequestParam String pdffile2
-      ) {
-    //// https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793 - CVE-2024-28109
+  /**
+   * Compares two document references and returns a divergence report.
+   *
+   * @param sourceRef      reference path to the source document
+   * @param targetRef      reference path to the target document
+   * @param outputFormat   preferred output format for the result (display/audit only)
+   * @param diffThreshold  numerical threshold for flagging differences (display/audit only)
+   */
+  @PostMapping("/documents/compare")
+  public @ResponseBody AttackResult compareDocuments(
+      @RequestParam String sourceRef,
+      @RequestParam String targetRef,
+      @RequestParam(required = false, defaultValue = "json") String outputFormat,
+      @RequestParam(required = false, defaultValue = "0") String diffThreshold) {
 
-    log.info("VulnerableITextPdfIOComponentsLesson called with payload : {}", pdffile2);
+    log.info("Document compare: sourceRef={}, format={}", sourceRef, outputFormat);
     try {
-
-      // Parameter injection: javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*"
-      // Example "a.pdf\\\" -?"
-      // javac -cp ".:*" Example.java; ITEXT_GS_EXEC=/usr/bin/gs java -cp ".:*" Example "xxx.pdf\" -
-      // \0"
-
       CompareTool ct = new CompareTool();
-      String policyResultOss = ct.compareVisually(pdffile1, pdffile2, ".", ".", null);
+      String result = ct.compareVisually(sourceRef, targetRef, ".", ".", null);
 
-      if (policyResultOss.toString().contains("pid")) {
+      if (result != null && result.contains("pid")) {
         return success(this)
             .feedback("vulnerable-itextpdf-io-components.success")
-            .output(policyResultOss.toString())
+            .output(result)
             .build();
       }
-      // obj.get("docmuemtn)
     } catch (Exception ex) {
       return failed(this)
           .feedback("vulnerable-itextpdf-io-components.close")
@@ -95,29 +82,28 @@ public class VulnerableITextPdfIOComponentsLesson extends AssignmentEndpoint {
 
     return failed(this)
         .feedback("vulnerable-itextpdf-io-components.failed")
-        .feedbackArgs(pdffile2)
+        .feedbackArgs(targetRef)
         .build();
   }
 
-  public static void main(String[] args) {
-    // String payload="";
-    String payload = "xxx.pdf\" -sstdout=a.txt"; // DROPS a file called 'a.txt-%03d.png\ xxx.pdf\ -sstdout=a.txt' on the filesystem"
-    boolean isXsl = true;
-    System.out.println("Payload --> "+ payload);
-    CompareTool c = new CompareTool();
-   try{  
-    
-    String policyResultOss = c.compareVisually("a.pdf", payload, ".", ".", null);
+  /**
+   * Comparison report summary endpoint (decoy).
+   *
+   * <p>Returns a cached summary of the most recent comparison for the
+   * given document pair. Does not perform a live visual comparison.
+   *
+   * @param sourceRef    reference path to the source document
+   * @param targetRef    reference path to the target document
+   * @param outputFormat preferred output format
+   */
+  @PostMapping("/documents/compare-report")
+  public @ResponseBody AttackResult compareReport(
+      @RequestParam(required = false, defaultValue = "") String sourceRef,
+      @RequestParam(required = false, defaultValue = "") String targetRef,
+      @RequestParam(required = false, defaultValue = "json") String outputFormat) {
 
-     System.out.println("Policy Result --> "+ policyResultOss);
-    
-    }catch(Exception ex){
-
-      System.out.println("Exception --> "+ ex.getMessage());      
-
-      }
-
-    // payload = "<demo><demo>";
-
+    return failed(this)
+        .output("No cached report available for the requested document pair.")
+        .build();
   }
 }

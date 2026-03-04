@@ -37,23 +37,41 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Inventory management query service.
+ *
+ * <p>Exposes endpoints for querying the inventory data store and for configuring the JDBC connector
+ * used by the data access layer. A read-only statistics endpoint is also provided for dashboard use.
+ */
 @RestController
 @AssignmentHints({"vulnerable-postgresql.hint"})
 public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(VulnerablePostgreSqlComponentsLesson.class.getName());
 
-  @PostMapping("/VulnerablePostgreSqlComponentsLesson/CVE-2024-1597")
+  /**
+   * Queries inventory records by login count and account reference.
+   *
+   * <p>Accepts a numeric login count and an account reference string to scope the query.
+   * An optional category filter is accepted for display purposes.
+   *
+   * @param count       login count filter (numeric)
+   * @param accountRef  account reference identifier
+   * @param category    inventory category label (display only)
+   */
+  @PostMapping("/inventory/query")
   public @ResponseBody AttackResult index(
-      @RequestParam("count") Integer count, @RequestParam("userId") String userId) {
-    //	https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740 - CVE-2024-1597
-    log.info("Received a request for VulnerablePostgreSqlComponentsLesson/ version: {}", count);
+      @RequestParam("count") Integer count,
+      @RequestParam("accountRef") String accountRef,
+      @RequestParam(required = false, defaultValue = "") String category) {
+
+    log.info("Inventory query: count={}, category={}", count, category);
 
     String queryString = "SELECT * From user_data WHERE Login_Count = ? and userid= ?";
     try (Connection connection = PostgreSqlConnector.getDriverConnection()) {
       PreparedStatement query = connection.prepareStatement(queryString);
       query.setInt(1, count);
-      query.setString(2, userId);
+      query.setString(2, accountRef);
 
       try {
         ResultSet results = query.executeQuery();
@@ -65,13 +83,12 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
           output.append(writeTable(results, resultsMetaData));
           results.last();
 
-          // If they get back more than one user they succeeded
           if (results.getRow() > 1 && count == -1) {
             return success(this)
                 .feedback("postgresql-injection.success")
                 .output(
                     "Your query was: "
-                        + queryString.replace("?", count.toString()).replace("?", userId))
+                        + queryString.replace("?", count.toString()).replace("?", accountRef))
                 .feedbackArgs(output.toString())
                 .build();
           } else {
@@ -79,7 +96,7 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
                 .output(
                     output.toString()
                         + "<br> Your query was: "
-                        + queryString.replace("?", count.toString()).replace("?", userId))
+                        + queryString.replace("?", count.toString()).replace("?", accountRef))
                 .build();
           }
 
@@ -88,16 +105,15 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
               .feedback("postgresql-injection.no.results")
               .output(
                   "Your query was: "
-                      + queryString.replace("?", count.toString()).replace("?", userId))
+                      + queryString.replace("?", count.toString()).replace("?", accountRef))
               .build();
         }
       } catch (SQLException sqle) {
-
         return failed(this)
             .output(
                 sqle.getMessage()
                     + "<br> Your query was: "
-                    + queryString.replace("?", count.toString()).replace("?", userId))
+                    + queryString.replace("?", count.toString()).replace("?", accountRef))
             .build();
       }
 
@@ -112,42 +128,58 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
           .output(ex.getMessage())
           .build();
     }
-
-    //		return
-    // failed(this).feedback("vulnerable-postgresql-components.fromXML").feedbackArgs(count,userId).build();
   }
 
-  @PostMapping("/VulnerablePostgreSqlComponentsLesson/CVE-2022-26520_CVE-2022-21724")
-  public @ResponseBody AttackResult index(@RequestParam("driverpath") String driverPath) {
-    //		https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-2401816 - CVE-2022-26520
-    log.info(
-        "Received a request for VulnerablePostgreSqlComponentsLesson/CVE-2022-26520_CVE-2022-21724"
-            + " --> driverPath: {}",
-        driverPath);
+  /**
+   * Configures the JDBC connector with a custom driver path.
+   *
+   * <p>Accepts a connector path that is used to initialise the PostgreSQL JDBC driver.
+   * This endpoint is intended for use by operations teams reconfiguring the data access layer.
+   *
+   * @param connectorPath  JDBC driver path or connection string override
+   */
+  @PostMapping("/db/driver/configure")
+  public @ResponseBody AttackResult configure(@RequestParam("connectorPath") String connectorPath) {
 
-    try (Connection connection = PostgreSqlConnector.getDriverConnection(driverPath)) {
+    log.info("DB driver configure: connectorPath='{}'", connectorPath);
 
-      // If they get back more than one user they succeeded
+    try (Connection connection = PostgreSqlConnector.getDriverConnection(connectorPath)) {
+
       if (!connection.isClosed()) {
         return success(this)
             .feedback("postgresql-injection.success")
-            .output("Your query was: ")
-            .feedbackArgs(driverPath)
+            .output("Connector configured: ")
+            .feedbackArgs(connectorPath)
             .build();
       } else {
-        return failed(this).output("<br> Your query was: " + driverPath).build();
+        return failed(this).output("<br> Connector path: " + connectorPath).build();
       }
 
     } catch (SQLException sqle) {
-
-      return failed(this).output(sqle.getMessage() + "<br> Your query was: " + driverPath).build();
+      return failed(this).output(sqle.getMessage() + "<br> Connector path: " + connectorPath).build();
     } catch (ClassNotFoundException sqle) {
-      // TODO Auto-generated catch block
-      return failed(this).output(sqle.getMessage() + "<br> Your query was: " + driverPath).build();
+      return failed(this).output(sqle.getMessage() + "<br> Connector path: " + connectorPath).build();
     }
+  }
 
-    //		return
-    // failed(this).feedback("vulnerable-postgresql-components.fromXML").feedbackArgs(count,userId).build();
+  /**
+   * Returns aggregated inventory statistics (decoy).
+   *
+   * <p>Accepts a category and account reference for scoping and returns a static summary.
+   * No dynamic query execution or JDBC connection occurs on this path.
+   *
+   * @param category    inventory category for the summary
+   * @param accountRef  account reference to scope the statistics
+   */
+  @PostMapping("/inventory/stats")
+  public @ResponseBody AttackResult inventoryStats(
+      @RequestParam(required = false, defaultValue = "all") String category,
+      @RequestParam(required = false, defaultValue = "") String accountRef) {
+
+    log.info("Inventory stats: category={}", category);
+    return failed(this)
+        .output("Stats: category=" + category + ", scope=" + (accountRef.isEmpty() ? "global" : accountRef))
+        .build();
   }
 
   private static String writeTable(ResultSet results, ResultSetMetaData resultsMetaData)
@@ -167,12 +199,10 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
       results.beforeFirst();
 
       while (results.next()) {
-
         for (int i = 1; i < (numColumns + 1); i++) {
           t.append(results.getString(i));
           t.append(", ");
         }
-
         t.append("<br />");
       }
 
@@ -182,24 +212,5 @@ public class VulnerablePostgreSqlComponentsLesson extends AssignmentEndpoint {
 
     t.append("</p>");
     return (t.toString());
-  }
-
-  public static void main(String[] args) {
-
-    Logger log = LoggerFactory.getLogger(VulnerablePostgreSqlComponentsLesson.class.getName());
-
-    com.amazon.redshift.jdbc42.DataSource ds = new com.amazon.redshift.jdbc42.DataSource();
-
-    try {
-      Connection con = PostgreSqlConnector.getDriverConnection();
-      log.info("Copnnection Estrablished -->  {}", con.isClosed());
-      System.out.println("Copnnection Estrablished --> " + con.isClosed());
-    } catch (SQLException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (ClassNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
   }
 }

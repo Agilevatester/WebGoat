@@ -16,36 +16,46 @@
 
             <script th:src="@{/lesson_js/spel.js}" type="text/javascript"></script>
 
-
-            <!-- Employee Performance Review Search Form
-                 Multiple parameters — only one is vulnerable. Students must identify it. -->
+            <!-- HR Performance-Review Search Form -->
             <form class="attack-form" accept-charset="UNKNOWN" id="spel-search-form"
                   method="POST" name="form"
                   successCallback="onSpelSearchResponse"
-                  action="SpringSpelInjection/review-search">
+                  action="hr/reports/search">
 
                 <h5>Employee Performance Review Search</h5>
 
                 <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
                     <div>
-                        <label>Employee ID</label><br/>
-                        <input name="employeeId" type="text" value="EMP-1042"
-                               style="width:120px" />
+                        <label>Staff Ref</label><br/>
+                        <input name="staffRef" type="text" value="EMP-1042"
+                               style="width:110px;" />
                     </div>
                     <div>
-                        <label>Review Year</label><br/>
-                        <input name="reviewYear" type="text" value="2024"
-                               style="width:80px" />
+                        <label>Fiscal Year</label><br/>
+                        <input name="fiscalYear" type="text" value="2024"
+                               style="width:80px;" />
                     </div>
                     <div>
-                        <label>Department</label><br/>
-                        <input name="department" type="text" value="Engineering"
-                               style="width:130px" />
+                        <label>Cost Centre</label><br/>
+                        <input name="costCenter" type="text" value="Engineering"
+                               style="width:130px;" />
                     </div>
                     <div>
-                        <label>Output View</label><br/>
-                        <input name="outputView" type="text" value="summary"
-                               style="width:200px" placeholder="summary / detailed / compact" />
+                        <label>Report Template</label><br/>
+                        <input name="reportTemplate" type="text" value="summary"
+                               style="width:200px;" placeholder="summary / detailed / compact" />
+                    </div>
+                    <div>
+                        <label>Sort Order</label><br/>
+                        <select name="sortOrder" style="width:100px;">
+                            <option value="asc" selected>Ascending</option>
+                            <option value="desc">Descending</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Locale</label><br/>
+                        <input name="locale" type="text" value="en-US"
+                               style="width:80px;" />
                     </div>
                 </div>
 
@@ -57,19 +67,62 @@
 
             <hr style="margin:20px 0"/>
 
-            <!-- Token submission form — the assignment endpoint -->
+            <!-- Token submission form -->
             <form class="attack-form" accept-charset="UNKNOWN" id="spel-token-form"
                   method="POST" name="form"
                   successCallback="onSpelTokenResponse"
-                  action="SpringSpelInjection/submit-token">
+                  action="hr/reports/verify">
 
                 <h5>Submit Challenge Token</h5>
-                <p>Once you have exfiltrated the server-side token via SpEL injection, enter it here:</p>
+                <p>Once you have retrieved the server-side token, enter it here:</p>
                 <input name="token" type="text" placeholder="e.g. A3F9B1C2D4E5"
                        style="width:220px; font-family:monospace; letter-spacing:1px;" /><br/><br/>
-                <input name="submit" value="Submit Token" type="submit"/>
+                <input name="submit" value="Verify Token" type="submit"/>
             </form>
 
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <!-- Report export (decoy flow — shown after the main challenge) -->
+    <div class="lesson-page-wrapper">
+        <h5>Report Export</h5>
+        <p>Use this form to export a formatted report using the same search parameters.</p>
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="exportForm"
+                  action="hr/reports/export">
+                <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                    <div>
+                        <label>Staff Ref</label><br/>
+                        <input name="staffRef" type="text" value="EMP-1042" style="width:110px;" />
+                    </div>
+                    <div>
+                        <label>Fiscal Year</label><br/>
+                        <input name="fiscalYear" type="text" value="2024" style="width:80px;" />
+                    </div>
+                    <div>
+                        <label>Cost Centre</label><br/>
+                        <input name="costCenter" type="text" value="Engineering" style="width:130px;" />
+                    </div>
+                    <div>
+                        <label>Report Template</label><br/>
+                        <input name="reportTemplate" type="text" value="summary" style="width:130px;" />
+                    </div>
+                    <div>
+                        <label>Sort Order</label><br/>
+                        <select name="sortOrder" style="width:100px;">
+                            <option value="asc" selected>Ascending</option>
+                            <option value="desc">Descending</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Locale</label><br/>
+                        <input name="locale" type="text" value="en-US" style="width:80px;" />
+                    </div>
+                </div>
+                <input name="submit" value="Export Report" type="submit"/>
+            </form>
             <div class="attack-feedback"></div>
             <div class="attack-output"></div>
         </div>

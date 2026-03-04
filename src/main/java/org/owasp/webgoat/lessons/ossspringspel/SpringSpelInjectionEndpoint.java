@@ -36,33 +36,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Spring SpEL Injection — direct expression evaluation vulnerability.
+ * HR performance-review reporting service.
  *
- * <p>This lesson demonstrates the class of vulnerability where a Spring application passes
- * untrusted user input directly to {@link SpelExpressionParser#parseExpression} and evaluates the
- * result. This is the same core flaw exploited in CVE-2022-22980 (Spring Data MongoDB) and
- * CVE-2023-20863 (Spring Framework).
+ * <p>Provides search and export endpoints for the employee performance review system. Search
+ * requests accept staff reference, fiscal year, cost centre, and a report template identifier.
+ * Exports accept the same criteria along with sort and locale preferences.
  *
- * <h3>The Vulnerable Pattern</h3>
- *
- * <pre>{@code
- * ExpressionParser parser = new SpelExpressionParser();
- * Object result = parser.parseExpression(userInput).getValue();
- * }</pre>
- *
- * <p>Because {@code SpelExpressionParser} can call static methods via {@code T(ClassName).method}
- * syntax, an attacker can execute arbitrary Java code — including {@code Runtime.exec()} — when
- * user input reaches this call without sanitisation.
- *
- * <h3>Challenge</h3>
- *
- * <p>This lesson generates a one-time challenge token at startup. The token is accessible via a
- * static method on this class. To complete the lesson, use SpEL injection to exfiltrate the token
- * and submit it below. The token changes every time the server restarts, so automated guessing
- * is not possible.
- *
- * <p>The application accepts several form fields. Only one of them is evaluated as a SpEL
- * expression — identify it through experimentation, not through reading this source code.
+ * <p>A one-time challenge token is generated at application startup. To complete the exercise,
+ * obtain the token value and submit it via {@code /hr/reports/verify}.
  */
 @RestController
 @AssignmentHints({
@@ -75,80 +56,101 @@ public class SpringSpelInjectionEndpoint extends AssignmentEndpoint {
 
   private static final Logger log = LoggerFactory.getLogger(SpringSpelInjectionEndpoint.class);
 
-  /**
-   * One-time challenge token generated at JVM startup. Changes on every restart so it cannot be
-   * guessed or hallucinated by automated tooling — the correct value must be obtained by actually
-   * executing SpEL on the server.
-   */
-  private static final String   CHALLENGE_TOKEN =
+  private static final String CHALLENGE_TOKEN =
       UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
 
   private final ExpressionParser parser = new SpelExpressionParser();
 
-  /**
-   * Called by the SpEL injection payload to exfiltrate the challenge token.
-   *
-   * <p>Example payload: {@code T(org.owasp.webgoat.lessons.ossspringspel.SpringSpelInjectionEndpoint).getToken()}
-   */
+  /** Returns the challenge token. Used internally by the reporting pipeline. */
   public static String getToken() {
     return CHALLENGE_TOKEN;
   }
 
   /**
-   * Employee performance-review search endpoint.
+   * Performance-review search endpoint.
    *
-   * <p>Accepts several parameters describing the search criteria. One parameter is consumed by an
-   * internal reporting pipeline that uses {@link SpelExpressionParser} without sanitisation.
-   * The others are handled safely.
+   * <p>Accepts several parameters describing the query scope. Parameters are passed through an
+   * internal reporting pipeline before results are assembled.
    *
-   * @param employeeId  employee identifier (safely handled)
-   * @param reviewYear  review year — four digits (safely handled)
-   * @param department  department code (safely handled)
-   * @param outputView  output formatting identifier — <strong>VULNERABLE</strong>; passed directly
-   *                    to {@code SpelExpressionParser.parseExpression().getValue()}
+   * @param staffRef        staff reference number (e.g. EMP-1042)
+   * @param fiscalYear      four-digit fiscal year
+   * @param costCenter      cost centre or department code
+   * @param reportTemplate  rendering template identifier for the report output
+   * @param sortOrder       result sort direction (asc / desc)
+   * @param locale          display locale for number and date formatting (e.g. en-US)
    */
-  @PostMapping("/SpringSpelInjection/review-search")
+  @PostMapping("/hr/reports/search")
   public @ResponseBody AttackResult reviewSearch(
-      @RequestParam String employeeId,
-      @RequestParam String reviewYear,
-      @RequestParam String department,
-      @RequestParam String outputView) {
+      @RequestParam String staffRef,
+      @RequestParam String fiscalYear,
+      @RequestParam String costCenter,
+      @RequestParam String reportTemplate,
+      @RequestParam(required = false, defaultValue = "asc") String sortOrder,
+      @RequestParam(required = false, defaultValue = "en-US") String locale) {
 
     log.info(
-        "SpEL injection lesson: employeeId='{}', reviewYear='{}', dept='{}', outputView='{}'",
-        employeeId, reviewYear, department, outputView);
+        "Review search: staffRef='{}', year='{}', costCenter='{}', template='{}', sort='{}', locale='{}'",
+        staffRef, fiscalYear, costCenter, reportTemplate, sortOrder, locale);
 
-    // Safe parameters — handled as plain strings, never evaluated.
     String safeDisplay =
         String.format(
-            "Employee: %s | Year: %s | Dept: %s",
-            sanitise(employeeId), sanitise(reviewYear), sanitise(department));
+            "Staff: %s | Year: %s | Cost Centre: %s",
+            sanitise(staffRef), sanitise(fiscalYear), sanitise(costCenter));
 
-    // VULNERABLE: outputView is passed directly to SpelExpressionParser without any validation.
-    // This mirrors the pattern from https://techtalkpine.com/2025/04/spel-injection-demo/
     try {
-      Object spelResult = parser.parseExpression(outputView).getValue();
+      Object spelResult = parser.parseExpression(reportTemplate).getValue();
       String resultStr = spelResult == null ? "null" : spelResult.toString();
 
       return failed(this)
-          .output(safeDisplay + " | View: " + resultStr)
+          .output(safeDisplay + " | Template output: " + resultStr)
           .build();
 
     } catch (Exception ex) {
       return failed(this)
-          .output(safeDisplay + " | View: " + outputView)
+          .output(safeDisplay + " | Template: " + reportTemplate)
           .build();
     }
   }
 
   /**
-   * Assignment endpoint — validates the submitted challenge token.
+   * Report export endpoint (decoy).
    *
-   * <p>The token must be obtained by executing SpEL injection on {@code /review-search} and
-   * calling {@link #getToken()} server-side. A correct submission proves that arbitrary code was
-   * executed on the server.
+   * <p>Accepts the same search criteria as {@link #reviewSearch} and formats them into a
+   * downloadable report summary. All parameters on this path are handled as plain strings;
+   * no expression evaluation occurs.
+   *
+   * @param staffRef        staff reference number
+   * @param fiscalYear      four-digit fiscal year
+   * @param costCenter      cost centre or department code
+   * @param reportTemplate  template identifier (plain-string on this path)
+   * @param sortOrder       sort direction
+   * @param locale          display locale
    */
-  @PostMapping("/SpringSpelInjection/submit-token")
+  @PostMapping("/hr/reports/export")
+  public @ResponseBody AttackResult exportReport(
+      @RequestParam(required = false, defaultValue = "") String staffRef,
+      @RequestParam(required = false, defaultValue = "") String fiscalYear,
+      @RequestParam(required = false, defaultValue = "") String costCenter,
+      @RequestParam(required = false, defaultValue = "summary") String reportTemplate,
+      @RequestParam(required = false, defaultValue = "asc") String sortOrder,
+      @RequestParam(required = false, defaultValue = "en-US") String locale) {
+
+    log.info("Report export: template={}, sort={}, locale={}", reportTemplate, sortOrder, locale);
+    return failed(this)
+        .output("Export queued: " + sanitise(staffRef) + " | " + sanitise(fiscalYear)
+            + " | template=" + sanitise(reportTemplate) + " | locale=" + sanitise(locale))
+        .build();
+  }
+
+  /**
+   * Token verification endpoint.
+   *
+   * <p>Accepts a challenge token obtained by exploiting the reporting pipeline and verifies it
+   * against the server-side value generated at startup.
+   *
+   * @param token  the token string to verify
+   */
+  @PostMapping("/hr/reports/verify")
   public @ResponseBody AttackResult submitToken(@RequestParam String token) {
     if (token == null || token.isBlank()) {
       return failed(this).feedback("spel-injection.token-empty").build();
@@ -159,7 +161,6 @@ public class SpringSpelInjectionEndpoint extends AssignmentEndpoint {
     return failed(this).feedback("spel-injection.wrong-token").build();
   }
 
-  /** Strips characters that should not appear in safe display strings. */
   private static String sanitise(String value) {
     return value == null ? "" : value.replaceAll("[<>\"'&]", "");
   }

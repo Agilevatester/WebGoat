@@ -32,27 +32,15 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * MFA Backup Code Abuse — Technique 5 (DeepStrike).
+ * Account recovery code service.
  *
- * <p>Backup codes are single-use emergency credentials intended for situations where the primary
- * second factor is unavailable. Their security depends on two properties:
- * <ol>
- *   <li>They are stored hashed (not plaintext) and never shown again after initial generation.
- *   <li>Viewing or regenerating them requires step-up authentication (re-verifying identity
- *       including the second factor before revealing the codes).
- * </ol>
+ * <p>Provides two endpoints for the emergency recovery flow. The recovery
+ * code retrieval endpoint returns the account's registered recovery codes
+ * for the authenticated session. The recovery login endpoint accepts a
+ * recovery code in place of the primary second factor.
  *
- * <p>This endpoint is vulnerable on both counts:
- * <ul>
- *   <li>{@code POST /auth-bypass/mfa/reveal-backup-codes} — returns backup codes in plaintext
- *       with no step-up authentication. Any half-authenticated (password-only) or even
- *       unauthenticated caller can retrieve them.
- *   <li>{@code POST /auth-bypass/mfa/backup-code-login} — accepts a backup code and grants full
- *       access. This is the assignment endpoint.
- * </ul>
- *
- * <p>The exercise flow: call the reveal endpoint → read the backup codes from the output → submit
- * one of them to the login endpoint.
+ * <p>A supplementary regeneration endpoint allows users to request a new
+ * set of recovery codes when the existing set is depleted.
  */
 @RestController
 @AssignmentHints({
@@ -62,60 +50,86 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class MfaBackupCodeEndpoint extends AssignmentEndpoint {
 
-  // Backup codes stored in plaintext — a real implementation hashes these with bcrypt.
-  private static final Set<String> BACKUP_CODES =
+  private static final Set<String> RECOVERY_CODES =
       Set.of("WGAT-7291", "WGAT-4823", "WGAT-9035", "WGAT-6147", "WGAT-3582");
 
   /**
-   * VULNERABILITY: Returns backup codes with no step-up authentication.
+   * Recovery code retrieval endpoint.
    *
-   * <p>The endpoint should require the caller to prove they hold BOTH factors before displaying
-   * emergency codes. Without that check, an attacker who has only the password can call this
-   * endpoint directly and obtain permanent bypass credentials.
+   * <p>Returns the recovery codes registered to the current account.
+   * Codes are returned in their active form for use in the recovery login flow.
+   *
+   * @param accountRef  account reference for the retrieval request (audit only)
+   * @param format      output format for the code list (plain, masked)
    */
   @PostMapping(
       path = "/auth-bypass/mfa/reveal-backup-codes",
       produces = {"application/json"})
   @ResponseBody
-  public AttackResult revealCodes() {
+  public AttackResult revealCodes(
+      @RequestParam(required = false, defaultValue = "") String accountRef,
+      @RequestParam(required = false, defaultValue = "plain") String format) {
 
-    // No auth check of any kind — the endpoint is wide open.
-    String codes = String.join(" | ", BACKUP_CODES);
+    String codes = String.join(" | ", RECOVERY_CODES);
     return failed(this)
         .feedback("mfa-backup.codes-revealed")
         .output(
-            "Your emergency backup codes (each valid for one use):\n"
+            "Recovery codes for this account:\n"
                 + codes
-                + "\n\nStore these in a safe place. "
-                + "They can be used instead of your authenticator app.")
+                + "\n\nStore these in a secure location. "
+                + "Each code may be used once in place of your primary authenticator.")
         .build();
   }
 
   /**
-   * Authenticates using a backup code — the assignment endpoint.
+   * Recovery code login endpoint — assignment check.
    *
-   * <p>A correctly implemented backup-code endpoint would:
-   * <ol>
-   *   <li>Compare against a <em>hashed</em> store, not a plaintext set.
-   *   <li>Atomically mark the code as consumed and remove it (truly single-use).
-   *   <li>Notify the account owner via email that a backup code was used.
-   * </ol>
+   * <p>Accepts a recovery code and grants access when it matches an active
+   * code in the account's recovery set.
+   *
+   * @param recoveryCode  the recovery code to authenticate with
+   * @param accountRef    account reference forwarded by the client (audit only)
    */
   @PostMapping(
       path = "/auth-bypass/mfa/backup-code-login",
       produces = {"application/json"})
   @ResponseBody
-  public AttackResult loginWithBackup(@RequestParam String backupCode) {
+  public AttackResult loginWithBackup(
+      @RequestParam String recoveryCode,
+      @RequestParam(required = false, defaultValue = "") String accountRef) {
 
-    String normalised = backupCode != null ? backupCode.trim().toUpperCase() : "";
+    String normalised = recoveryCode != null ? recoveryCode.trim().toUpperCase() : "";
 
-    if (BACKUP_CODES.contains(normalised)) {
+    if (RECOVERY_CODES.contains(normalised)) {
       return success(this).feedback("mfa-backup.success").build();
     }
 
     return failed(this)
         .feedback("mfa-backup.wrong")
-        .output("Code '" + backupCode + "' is not valid. Have you revealed your backup codes yet?")
+        .output("Code '" + recoveryCode + "' is not recognised. Retrieve your recovery codes first.")
+        .build();
+  }
+
+  /**
+   * Recovery code regeneration endpoint (decoy).
+   *
+   * <p>Accepts a request to regenerate the recovery code set. Returns a
+   * confirmation message. No codes are modified on this path.
+   *
+   * @param accountRef  account reference for the regeneration request
+   * @param reason      reason for regeneration (depleted, compromised, routine)
+   */
+  @PostMapping(
+      path = "/auth-bypass/mfa/regenerate-codes",
+      produces = {"application/json"})
+  @ResponseBody
+  public AttackResult regenerateCodes(
+      @RequestParam(required = false, defaultValue = "") String accountRef,
+      @RequestParam(required = false, defaultValue = "routine") String reason) {
+
+    return failed(this)
+        .output("Recovery code regeneration queued for account"
+            + (accountRef.isEmpty() ? "." : " (" + accountRef + ")."))
         .build();
   }
 }

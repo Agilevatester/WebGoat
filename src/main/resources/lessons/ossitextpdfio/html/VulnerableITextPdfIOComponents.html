@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
 </head>
 <body>
     <div class="lesson-page-wrapper">
@@ -12,57 +11,73 @@
         <div class="adoc-content" th:replace="~{doc:lessons/ossitextpdfio/documentation/VulnerableITextPdfIOcomponents_content0.adoc}"></div>
     </div>
 
+    <!-- Document Comparison -->
     <div class="lesson-page-wrapper">
-        <div class="challenge-header">
-            <h3>🎯 Challenge: Exploit Command Injection in File Comparison</h3>
-            <div class="difficulty-badge">Difficulty: ⭐⭐⭐⭐</div>
-            <p class="challenge-description">
-                <strong>Scenario:</strong> A PDF processing system uses the iText library to compare two PDF files. 
-                Your task is to exploit the system by injecting malicious parameters into the file paths to execute arbitrary commands.
-            </p>
-        </div>
-
         <div class="attack-container">
-            <form class="attack-form" method="POST" action="VulnerableITextPdfIOComponentsLesson/CVE-2021-43113">
-                <div class="input-section">
-                    <h4>🔍 Provide File Paths for Comparison:</h4>
-                    <label for="pdffile1">PDF File 1:</label>
-                    <input 
-                        type="text" 
-                        id="pdffile1" 
-                        name="pdffile1" 
-                        placeholder="Enter the path to the first PDF file" 
-                        size="75"
-                    />
-                    <br />
-                    <label for="pdffile2">PDF File 2:</label>
-                    <input 
-                        type="text" 
-                        id="pdffile2" 
-                        name="pdffile2" 
-                        placeholder="Enter the path to the second PDF file" 
-                        size="75"
-                    />
-                    <br />
-                    <small class="field-hint">Submit file paths to test the vulnerability.</small>
+            <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
 
-                    <button type="submit" class="submit-btn">📤 Submit File Paths</button>
+            <form class="attack-form" method="POST" action="documents/compare" id="docCompareForm">
+                <div class="input-section">
+                    <p><strong>Document Comparison</strong></p>
+
+                    <p>Source Document:</p>
+                    <input
+                        type="text"
+                        id="sourceRef"
+                        name="sourceRef"
+                        placeholder="e.g. reports/baseline.pdf"
+                        size="60"
+                    /><br/><br/>
+
+                    <p>Target Document:</p>
+                    <input
+                        type="text"
+                        id="targetRef"
+                        name="targetRef"
+                        placeholder="e.g. reports/current.pdf"
+                        size="60"
+                    /><br/><br/>
+
+                    <p>Output Format:</p>
+                    <select name="outputFormat">
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                        <option value="text">Plain Text</option>
+                    </select><br/><br/>
+
+                    <p>Difference Threshold:</p>
+                    <input type="text" name="diffThreshold" value="0"
+                           placeholder="0" style="width:60px"/><br/><br/>
+
+                    <input name="submit" value="Compare Documents" type="submit"/>
                 </div>
             </form>
 
-            <div class="info-box">
-                <p><strong>ℹ️ Tips:</strong></p>
-                <ul>
-                    <li>Use escape sequences to inject additional parameters.</li>
-                    <li>Test with file paths that include command-line arguments.</li>
-                    <li>Observe the system's response to identify successful exploitation.</li>
-                </ul>
-            </div>
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
 
-            <div class="warning-box">
-                <p><strong>⚠️ Real-World Context:</strong></p>
-                <p>This vulnerability allows attackers to execute arbitrary commands by injecting malicious file paths. It exploits the lack of input validation in the iText library's `CompareTool` class.</p>
-            </div>
+    <!-- Decoy: Comparison Report -->
+    <div class="lesson-page-wrapper">
+        <div class="attack-container">
+            <form class="attack-form" method="POST" action="documents/compare-report" id="compareReportForm">
+                <p><strong>Retrieve Comparison Report</strong></p>
+                <p>Source Document:</p>
+                <input type="text" name="sourceRef" placeholder="e.g. reports/baseline.pdf"
+                       size="60"/><br/><br/>
+                <p>Target Document:</p>
+                <input type="text" name="targetRef" placeholder="e.g. reports/current.pdf"
+                       size="60"/><br/><br/>
+                <select name="outputFormat">
+                    <option value="json">JSON</option>
+                    <option value="xml">XML</option>
+                </select><br/><br/>
+                <input name="submit" value="Get Report" type="submit"/>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
         </div>
     </div>
 </body>

@@ -31,22 +31,14 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * MFA OTP Brute Force — Technique 3 (DeepStrike).
+ * Verification code submission endpoint for the portal login flow.
  *
- * <p>Demonstrates the absence of rate-limiting or lockout on a One-Time Password verification
- * endpoint. Short numeric OTPs (6 digits = 10^6 values) are trivially brute-forceable when the
- * server imposes no attempt counter, no lockout threshold, and no CAPTCHA.
+ * <p>Accepts a time-sensitive verification code issued to the registered contact
+ * method. The code must be submitted within the validity window to complete
+ * authentication.
  *
- * <p>This endpoint intentionally accepts unlimited submissions against the same OTP. A correct
- * implementation would track failed attempts per session and lock the OTP (or the session) after
- * a small number of failures — for example, the approach used by Spring Security 7's
- * {@code InMemoryOneTimeTokenService} which invalidates a token after a single successful
- * consumption, but leaves rate-limiting to the application layer.
- *
- * <p>The OTP for this exercise is a fixed 4-digit value. Students are expected to discover it
- * using an intercepting proxy (Burp Suite Intruder, OWASP ZAP Fuzzer) or curl loop, then submit
- * it here. Hint 3 reveals the value for students who want to focus on the concept rather than the
- * automation.
+ * <p>A supplementary status endpoint provides feedback on verification attempt
+ * state without consuming a submission slot.
  */
 @RestController
 @AssignmentHints({
@@ -56,25 +48,55 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class MfaBruteForceEndpoint extends AssignmentEndpoint {
 
-  // Fixed OTP for the lesson. In a real app this would be a per-session random value.
-  // The correct fix: expire the OTP after N failed attempts (3–5 is standard).
   private static final String LESSON_OTP = "7528";
 
+  /**
+   * Verification code submission endpoint.
+   *
+   * <p>Validates the supplied code against the active verification token for
+   * the current session. Returns success when the submitted value matches
+   * the issued code.
+   *
+   * @param verificationCode  the code received on the registered contact method
+   * @param sessionRef        session reference token forwarded by the client (audit only)
+   */
   @PostMapping(
       path = "/auth-bypass/mfa/bruteforce-otp",
       produces = {"application/json"})
   @ResponseBody
-  public AttackResult verify(@RequestParam String otp) {
+  public AttackResult verify(
+      @RequestParam String verificationCode,
+      @RequestParam(required = false, defaultValue = "") String sessionRef) {
 
-    // VULNERABILITY: Every request is treated independently with no attempt tracking.
-    // An automated tool submitting 0000–9999 will find this in under a second.
-    if (LESSON_OTP.equals(otp != null ? otp.trim() : "")) {
+    if (LESSON_OTP.equals(verificationCode != null ? verificationCode.trim() : "")) {
       return success(this).feedback("mfa-bruteforce.success").build();
     }
 
     return failed(this)
         .feedback("mfa-bruteforce.wrong")
-        .output("Submitted OTP '" + otp + "' is incorrect. No lockout — try again.")
+        .output("Submitted code '" + verificationCode + "' is incorrect.")
+        .build();
+  }
+
+  /**
+   * Verification attempt status endpoint (decoy).
+   *
+   * <p>Returns the current verification state for the session without
+   * consuming an attempt or validating any code.
+   *
+   * @param sessionRef  session reference token
+   * @param channel     delivery channel used for the code (sms, email, app)
+   */
+  @PostMapping(
+      path = "/auth-bypass/mfa/verification-status",
+      produces = {"application/json"})
+  @ResponseBody
+  public AttackResult verificationStatus(
+      @RequestParam(required = false, defaultValue = "") String sessionRef,
+      @RequestParam(required = false, defaultValue = "app") String channel) {
+
+    return failed(this)
+        .output("Verification pending via channel: " + channel + ".")
         .build();
   }
 }

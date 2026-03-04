@@ -31,17 +31,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Missing Authentication Check — inspired by CVE-2024-4358 (Progress Telerik Report Server).
+ * Account provisioning service.
  *
- * <p>In the real vulnerability, the {@code /Startup/Register} endpoint was accessible without any
- * authentication, allowing an attacker to self-register an account with arbitrary roles and
- * receive a valid JWT token. That token was then used to upload a malicious report payload leading
- * to Remote Code Execution.
- *
- * <p>This exercise simulates the core flaw: a registration endpoint accepts a {@code role}
- * parameter and assigns it directly without verifying that the caller is authorised to grant
- * elevated roles. The fix is to enforce server-side authorisation — never trust role values
- * supplied by the client.
+ * <p>Provides a self-registration endpoint for new accounts and a separate profile-update endpoint
+ * for existing users. The registration endpoint accepts account details including an account tier
+ * that is applied to the new account during provisioning.
  */
 @RestController
 @AssignmentHints({
@@ -51,6 +45,19 @@ import org.springframework.web.bind.annotation.RestController;
 })
 public class MissingAuthEndpoint extends AssignmentEndpoint {
 
+  /**
+   * Self-registration endpoint.
+   *
+   * <p>Accepts account details and provisions a new account. The {@code accountTier} parameter
+   * specifies the access level to grant. Provisioning completes without verifying the caller's
+   * authorisation to request elevated tiers.
+   *
+   * @param username     desired account username
+   * @param email        account email address
+   * @param accountTier  access tier for the new account (user, manager, admin, etc.)
+   * @param orgId        organisation identifier for multi-tenant provisioning (display only)
+   * @param referralCode optional referral code applied at registration (display only)
+   */
   @PostMapping(
       path = "/auth-bypass/missing-auth-register",
       produces = {"application/json"})
@@ -58,18 +65,39 @@ public class MissingAuthEndpoint extends AssignmentEndpoint {
   public AttackResult register(
       @RequestParam String username,
       @RequestParam String email,
-      @RequestParam String role) {
+      @RequestParam String accountTier,
+      @RequestParam(required = false, defaultValue = "") String orgId,
+      @RequestParam(required = false, defaultValue = "") String referralCode) {
 
-    // VULNERABILITY: No authentication or authorisation check.
-    // Any caller — authenticated or not — can POST to this endpoint and supply
-    // role=admin to grant themselves administrator privileges.
-    // A correct implementation would:
-    //   1. Verify the caller holds an existing admin session.
-    //   2. Ignore or reject any client-supplied role that exceeds their current privilege.
-    if ("admin".equalsIgnoreCase(role.trim())) {
+    if ("admin".equalsIgnoreCase(accountTier.trim())) {
       return success(this).feedback("auth-bypass.missing-auth.success").build();
     }
 
     return failed(this).feedback("auth-bypass.missing-auth.not-admin").build();
+  }
+
+  /**
+   * Profile update endpoint (decoy).
+   *
+   * <p>Accepts updated display name and notification preferences for an existing account.
+   * No tier elevation or privileged field modification occurs on this path.
+   *
+   * @param username      account username
+   * @param displayName   updated display name
+   * @param notifications notification preference (all, mentions, none)
+   */
+  @PostMapping(
+      path = "/auth-bypass/missing-auth-profile",
+      produces = {"application/json"})
+  @ResponseBody
+  public AttackResult updateProfile(
+      @RequestParam(required = false, defaultValue = "") String username,
+      @RequestParam(required = false, defaultValue = "") String displayName,
+      @RequestParam(required = false, defaultValue = "all") String notifications) {
+
+    return failed(this)
+        .output("Profile updated for account: " + username
+            + " | notifications=" + notifications)
+        .build();
   }
 }

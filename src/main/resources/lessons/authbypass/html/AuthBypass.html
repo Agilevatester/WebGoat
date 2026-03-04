@@ -1,24 +1,14 @@
 <html xmlns:th="http://www.thymeleaf.org">
 
     <div class="lesson-page-wrapper">
-        <!-- reuse this lesson-page-wrapper block for each 'page' of content in your lesson -->
-        <!-- include content here, or can be placed in another location. Content will be presented via asciidocs files,
-        which go in src/main/resources/plugin/lessonplans/{lang}/{fileName}.adoc -->
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/bypass-intro.adoc}"></div>
     </div>
 
     <div class="lesson-page-wrapper">
-        <!-- reuse this lesson-page-wrapper block for each 'page' of content in your lesson -->
-        <!-- include content here, or can be placed in another location. Content will be presented via asciidocs files,
-        which go in src/main/resources/plugin/lessonplans/{lang}/{fileName}.adoc -->
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/2fa-bypass.adoc}"></div>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
-            <!-- using attack-form class on your form, will allow your request to be ajaxified and stay within the display framework for webgoat -->
-            <!-- you can write your own custom forms, but standard form submission will take you to your endpoint and outside of the WebGoat framework -->
-            <!-- of course, you can write your own ajax submission /handling in your own javascript if you like -->
 
-            <!-- modify the action to point to the intended endpoint and set other attributes as desired -->
             <script th:src="@{/lesson_js/bypass.js}" />
             <form class="attack-form" accept-charset="UNKNOWN" id="verify-account-form"
                   method="POST" name="form"
@@ -44,7 +34,7 @@
                   method="POST" name="form"
                   successCallback="onBypassResponse"
                   action="auth-bypass/verify-account"
-                  style="display:none"><!-- start off hidden -->
+                  style="display:none">
                 <p>Please provide a new password for your account</p>
 
                 <p>Password:</p>
@@ -59,10 +49,7 @@
 
             </form>
 
-            <!-- do not remove the two following div's, this is where your feedback/output will land -->
-            <!-- the attack response will include a 'feedback' and that will automatically go here -->
             <div class="attack-feedback"></div>
-            <!-- output is intended to be a simulation of what the screen would display in an attack -->
             <div class="attack-output"></div>
         </div>
 
@@ -95,14 +82,14 @@
     </div>
 
     <!-- =====================================================================
-         MFA Bypass — Introduction: Spring Security 7 MFA + 10 Bypass Techniques
+         MFA Bypass Exercises
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/mfa-bypass-intro.adoc}"></div>
     </div>
 
     <!-- =====================================================================
-         Exercise: MFA State Skip  (DeepStrike Technique 1)
+         Exercise: MFA State Skip
          ===================================================================== -->
     <div class="lesson-page-wrapper">
              <script th:src="@{/lesson_js/bypass.js}" />
@@ -114,7 +101,7 @@
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-step1-form"
                   method="POST" name="form"
                   prepareData="prepareMfaStep1Json"
-                  contentType="application/json; charset=UTF-8"                
+                  contentType="application/json; charset=UTF-8"
                   failureCallback="onMfaStep1Response"
                   action="auth-bypass/mfa/credentials">
                 <p><strong>Step 1 — Enter credentials</strong></p>
@@ -125,7 +112,7 @@
                 <input name="submit" value="Submit Credentials" type="submit"/>
             </form>
 
-                        <!-- Step 2: OTP verification (normal flow) — hidden until step 1 done -->
+            <!-- Step 2: OTP verification (normal flow) — hidden until step 1 done -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-otp-form"
                   method="POST" name="form"
                   prepareData="prepareMfaOtpJson"
@@ -134,26 +121,21 @@
                   action="auth-bypass/mfa/otp-verify"
                   style="display:none">
                 <p><strong>Step 2 — Enter OTP</strong></p>
-                <p>Use the OTP sent to your device to complete MFA.</p>
+                <p>Use the OTP sent to your device to complete verification.</p>
                 <input name="otp" value="" type="text" placeholder="Enter 6-digit OTP" /><br/><br/>
                 <input name="submit" value="Verify OTP" type="submit"/>
             </form>
 
-            <!-- Step 3: protected resource (should require OTP too, but vulnerable endpoint does not enforce it) -->
-
+            <!-- Step 3: access protected resource -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-access-form"
                   method="POST" name="form"
                   prepareData="prepareMfaAccessJson"
-                  contentType="application/json; charset=UTF-8"                  
+                  contentType="application/json; charset=UTF-8"
                   successCallback="onMfaAccessResponse"
                   action="auth-bypass/mfa/access"
                   style="display:none">
-                <p><strong>Step 2 should be OTP verification — but skip it!</strong></p>
-                <p>The server says an OTP was sent to your device. Instead of entering it,
-                   click the button below to access the protected resource directly.</p><br/>
                 <p><strong>Step 3 — Access Protected Resource</strong></p>
-                <p>Normal flow: verify OTP first, then access.</p>
-                <p><strong>Attack:</strong> skip the OTP step and click this button directly after Step 1.</p><br/>
+                <p>Proceed to access the protected resource after completing your authentication steps.</p><br/>
                 <input name="submit" value="Access Protected Resource" type="submit"/>
             </form>
 
@@ -163,14 +145,14 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: OTP Leakage in HTTP Response  (DeepStrike Technique 2)
+         Exercise: OTP Leakage in HTTP Response
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-mfa-otp-leak.adoc}"></div>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
 
-            <!-- Step 1: request OTP (leaks in response) -->
+            <!-- Step 1: request OTP -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-send-otp-form"
                   method="POST" name="form"
                   successCallback="onMfaSendOtpResponse"
@@ -181,14 +163,14 @@
                 <input name="submit" value="Send OTP" type="submit"/>
             </form>
 
-            <!-- Step 2: verify the OTP read from the response -->
+            <!-- Step 2: verify the OTP -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-verify-otp-form"
                   method="POST" name="form"
                   successCallback="onMfaVerifyOtpResponse"
                   action="auth-bypass/mfa/verify-leaked-otp"
                   style="display:none">
                 <p><strong>Step 2 — Verify OTP</strong></p>
-                <p>Enter the OTP you found in the network response:</p>
+                <p>Enter the OTP:</p>
                 <input name="otp" value="" type="text" placeholder="4-digit code" /><br/><br/>
                 <input name="submit" value="Verify OTP" type="submit"/>
             </form>
@@ -199,7 +181,7 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Missing Auth Check  (CVE-2024-4358 / Telerik style)
+         Exercise: Missing Auth Check
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-missing-auth.adoc}"></div>
@@ -214,10 +196,15 @@
                 <input name="username" value="" type="text" placeholder="your-username" /><br/>
 
                 <p>Email:</p>
-                <input name="email" value="" type="email" placeholder="user@example.com" /><br/><br/>
+                <input name="email" value="" type="email" placeholder="user@example.com" /><br/>
 
-                <!-- VULNERABILITY: role is a hidden field — change it to 'admin' to bypass -->
-                <input type="hidden" name="role" value="user" />
+                <p>Organisation ID:</p>
+                <input name="orgId" value="" type="text" placeholder="e.g. ORG-001" /><br/>
+
+                <p>Referral Code:</p>
+                <input name="referralCode" value="" type="text" placeholder="optional" /><br/><br/>
+
+                <input type="hidden" name="accountTier" value="user" />
 
                 <input name="submit" value="Register" type="submit"/>
             </form>
@@ -228,7 +215,7 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Rate-Limit Bypass  (EDB-49037 / Bludit style)
+         Exercise: Rate-Limit Bypass
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-ratelimit-bypass.adoc}"></div>
@@ -254,7 +241,7 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Path-Based Auth Bypass  (CVE-2024-27198 / TeamCity style)
+         Exercise: Path-Based Auth Bypass
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-path-bypass.adoc}"></div>
@@ -267,9 +254,9 @@
                   action="auth-bypass/path-bypass">
                 <p>Requested resource path:</p>
                 <input name="requestedPath" value="/data" type="text"
-                       placeholder="e.g. /admin;.css" style="width:280px" /><br/><br/>
-                <small>The WAF blocks an exact request to <code>/admin</code>.
-                       Find a path variant that bypasses the filter.</small><br/><br/>
+                       placeholder="e.g. /resources/list" style="width:280px" /><br/><br/>
+                <small>The access control layer evaluates the path before the router resolves it.
+                       Explore how path normalisation may affect the outcome.</small><br/><br/>
 
                 <input name="submit" value="Access Resource" type="submit"/>
             </form>
@@ -280,7 +267,7 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: OTP Brute Force — No Rate Limiting  (Technique 3)
+         Exercise: OTP Verification — No Rate Limiting
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-mfa-bruteforce.adoc}"></div>
@@ -291,13 +278,12 @@
                   method="POST" name="form"
                   successCallback="onMfaBruteforceResponse"
                   action="auth-bypass/mfa/bruteforce-otp">
-                <p><strong>OTP Verification</strong> — no rate limiting is enforced</p>
-                <p>Enter the 4-digit OTP:</p>
-                <input name="otp" value="" type="text" placeholder="0000" maxlength="4"
-                       style="width:100px; letter-spacing:4px; font-size:1.2em" /><br/><br/>
-                <small>Tip: use Burp Suite Intruder or a curl loop to enumerate 0000–9999.
-                       Or use Hint 3 to get the value directly.</small><br/><br/>
-                <input name="submit" value="Submit OTP" type="submit"/>
+                <p><strong>OTP Verification</strong></p>
+                <p>Enter your verification code:</p>
+                <input name="verificationCode" value="" type="text" placeholder="0000" maxlength="4"
+                       style="width:100px; letter-spacing:4px; font-size:1.2em" /><br/>
+                <input name="sessionRef" value="" type="hidden" /><br/>
+                <input name="submit" value="Submit Code" type="submit"/>
             </form>
 
             <div class="attack-feedback"></div>
@@ -306,19 +292,19 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Recovery Flow Bypass  (Technique 4)
+         Exercise: Recovery Flow
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-mfa-recovery.adoc}"></div>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
 
-            <!-- Normal login Step 1 (optional — just to see the flow) -->
+            <!-- Step 1: credentials -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-recovery-step1-form"
                   method="POST" name="form"
                   successCallback="onMfaRecoveryStep1Response"
                   action="auth-bypass/mfa/recovery-login-step1">
-                <p><strong>Step 1 — Normal Login (credentials)</strong></p>
+                <p><strong>Step 1 — Sign In</strong></p>
                 <p>Username:</p>
                 <input name="username" value="" type="text" placeholder="admin" /><br/>
                 <p>Password:</p>
@@ -326,28 +312,28 @@
                 <input name="submit" value="Submit Credentials" type="submit"/>
             </form>
 
-            <!-- OTP step (expected to fail — shown for illustration) -->
+            <!-- Step 2: OTP (shown after step 1) -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-recovery-step2-form"
                   method="POST" name="form"
                   successCallback="onMfaRecoveryStep2Response"
                   action="auth-bypass/mfa/recovery-login-step2"
                   style="display:none">
-                <p><strong>Step 2 — OTP (device required)</strong></p>
+                <p><strong>Step 2 — OTP Verification</strong></p>
                 <p>Enter the 6-digit OTP sent to your device:</p>
                 <input name="otp" value="" type="text" placeholder="------" /><br/><br/>
-                <small>Can't access your device? Use the account recovery option below.</small><br/><br/>
+                <small>Unable to access your device? Use the account recovery option below.</small><br/><br/>
                 <input name="submit" value="Submit OTP" type="submit"/>
             </form>
 
-            <!-- Recovery bypass — the actual assignment endpoint -->
+            <!-- Recovery bypass — the assignment endpoint -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-recovery-bypass-form"
                   method="POST" name="form"
                   successCallback="onMfaRecoveryBypassResponse"
                   action="auth-bypass/mfa/account-recovery">
-                <p><strong>Account Recovery</strong> — bypass MFA with email only</p>
+                <p><strong>Account Recovery</strong></p>
                 <p>Registered email address:</p>
                 <input name="email" value="" type="email" placeholder="user@example.com" /><br/><br/>
-                <input name="submit" value="Recover Account (Skip MFA)" type="submit"/>
+                <input name="submit" value="Recover Access" type="submit"/>
             </form>
 
             <div class="attack-feedback"></div>
@@ -356,34 +342,35 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Backup Code Abuse  (Technique 5)
+         Exercise: Recovery Code Abuse
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-mfa-backup-codes.adoc}"></div>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
 
-            <!-- Step 1: reveal backup codes (no auth needed — vulnerability) -->
+            <!-- Step 1: retrieve recovery codes -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-reveal-codes-form"
                   method="POST" name="form"
                   successCallback="onMfaRevealCodesResponse"
                   action="auth-bypass/mfa/reveal-backup-codes">
-                <p><strong>Step 1 — Reveal Backup Codes</strong></p>
-                <p>No authentication is required to view your backup codes.</p><br/>
-                <input name="submit" value="Reveal Backup Codes" type="submit"/>
+                <p><strong>Step 1 — Retrieve Recovery Codes</strong></p>
+                <p>Account Reference:</p>
+                <input name="accountRef" value="" type="text" placeholder="optional" /><br/><br/>
+                <input name="submit" value="Retrieve Recovery Codes" type="submit"/>
             </form>
 
-            <!-- Step 2: login with backup code (the assignment endpoint) -->
+            <!-- Step 2: login with recovery code -->
             <form class="attack-form" accept-charset="UNKNOWN" id="mfa-backup-login-form"
                   method="POST" name="form"
                   successCallback="onMfaBackupLoginResponse"
                   action="auth-bypass/mfa/backup-code-login"
                   style="display:none">
-                <p><strong>Step 2 — Login with Backup Code</strong></p>
-                <p>Enter one of the revealed backup codes (format: WGAT-XXXX):</p>
-                <input name="backupCode" value="" type="text" placeholder="WGAT-XXXX"
+                <p><strong>Step 2 — Sign In with Recovery Code</strong></p>
+                <p>Enter a recovery code:</p>
+                <input name="recoveryCode" value="" type="text" placeholder="WGAT-XXXX"
                        style="width:140px; font-family:monospace" /><br/><br/>
-                <input name="submit" value="Login with Backup Code" type="submit"/>
+                <input name="submit" value="Sign In" type="submit"/>
             </form>
 
             <div class="attack-feedback"></div>
@@ -392,7 +379,7 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: Client-Side Trust / Parameter Injection  (Technique 10)
+         Exercise: Client-Side Authentication State
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-mfa-client-trust.adoc}"></div>
@@ -406,12 +393,16 @@
                 <p>Username:</p>
                 <input name="username" value="" type="text" placeholder="admin" /><br/>
                 <p>Password:</p>
-                <input name="password" value="" type="password" placeholder="password123" /><br/><br/>
+                <input name="password" value="" type="password" placeholder="password123" /><br/>
 
-                <!-- VULNERABILITY: mfaVerified is a client-supplied flag — change it to 'true' -->
-                <input type="hidden" name="mfaVerified" value="false" />
+                <p>Device ID:</p>
+                <input name="deviceId" value="" type="text" placeholder="optional" /><br/>
 
-                <small>Inspect the form source and find the hidden field that controls MFA verification.</small><br/><br/>
+                <p>App Version:</p>
+                <input name="appVersion" value="" type="text" placeholder="optional" /><br/><br/>
+
+                <input type="hidden" name="sessionVerified" value="false" />
+
                 <input name="submit" value="Login" type="submit"/>
             </form>
 
@@ -421,34 +412,34 @@
     </div>
 
     <!-- =====================================================================
-         Exercise: OAuth Account Linking Pitfall  (Technique 9)
+         Exercise: OAuth Account Linking
          ===================================================================== -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/authbypass/documentation/exercise-oauth-linking.adoc}"></div>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
 
-            <!-- Step 1: Complete the Link (insecure userId parameter) -->
+            <!-- Step 1: complete the link -->
             <form class="attack-form" accept-charset="UNKNOWN" id="oauth-link-form"
                   method="POST" name="form"
                   successCallback="onOAuthLinkResponse"
                   action="auth-bypass/oauth/complete-link">
-                <p><strong>Step 1 — Complete Link</strong></p>
-                <p>WebWolf Identity (your OAuth username):</p>
+                <p><strong>Step 1 — Link External Identity</strong></p>
+                <p>External Identity (your OAuth username):</p>
                 <input name="webwolfUsername" value="" type="text" placeholder="e.g. hacker" /><br/>
-                <p>Target User ID <em>(vulnerability — try <code>admin</code>)</em>:</p>
-                <input name="userId" value="" type="text" placeholder="e.g. admin" /><br/><br/>
+                <p>Target Account:</p>
+                <input name="targetAccount" value="" type="text" placeholder="account identifier" /><br/><br/>
                 <input name="submit" value="Link Account" type="submit"/>
             </form>
 
-            <!-- Step 2: OAuth Login using the linked identity -->
+            <!-- Step 2: OAuth login -->
             <form class="attack-form" accept-charset="UNKNOWN" id="oauth-login-form"
                   method="POST" name="form"
                   successCallback="onOAuthLoginResponse"
                   action="auth-bypass/oauth/oauth-login"
                   style="display:none">
-                <p><strong>Step 2 — OAuth Login</strong></p>
-                <p>WebWolf Identity (same as Step 1):</p>
+                <p><strong>Step 2 — Sign In via Linked Identity</strong></p>
+                <p>External Identity (same as Step 1):</p>
                 <input name="webwolfUsername" value="" type="text" placeholder="e.g. hacker" /><br/><br/>
                 <input name="submit" value="OAuth Login" type="submit"/>
             </form>

