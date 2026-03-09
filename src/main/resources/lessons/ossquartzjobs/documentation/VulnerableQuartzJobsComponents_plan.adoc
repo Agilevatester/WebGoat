@@ -1,0 +1,24 @@
+== Vulnerable Quartz Scheduler
+
+This lesson explores a vulnerability in a widely used job scheduling library.
+Background task schedulers are common in enterprise applications for running
+periodic or event-driven workloads. When task definitions are resolved against
+external services at execution time, the configuration format accepted by the
+scheduler becomes a security boundary worth examining.
+
+=== Learning Objectives
+
+* Understand how background task scheduling engines process job configurations
+* Identify how externally-supplied configuration strings can influence runtime resolution
+* Observe the difference between safe and unsafe handling of task definitions
+* Explore the mitigated path and understand what makes it safe
+
+=== Background
+
+Scheduling frameworks provide a mechanism to run tasks in the background on a
+defined trigger. Job configuration is typically stored in a data map associated
+with each job. When the job executes, it reads its configuration from that map
+and uses it to connect to external resources or services.
+
+The interaction between the job configuration format and the runtime resolution
+mechanism is the focus of this exercise.

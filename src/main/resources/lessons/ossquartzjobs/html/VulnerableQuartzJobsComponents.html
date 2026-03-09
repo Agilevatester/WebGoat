@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/ossquartzjobs/documentation/VulnerableQuartzJobsComponents_plan.adoc}"></div>
+    </div>
+
+    <div class="lesson-page-wrapper">
+        <div class="adoc-content" th:replace="~{doc:lessons/ossquartzjobs/documentation/VulnerableQuartzJobsComponents_content0.adoc}"></div>
+    </div>
+
+    <!-- Task Submission -->
+    <div class="lesson-page-wrapper">
+        <div class="attack-container">
+            <div class="assignment-success"><i class="fa fa-2 fa-check hidden" aria-hidden="true"></i></div>
+
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form"
+                  action="scheduler/task" id="schedulerTaskForm">
+                <div id="lessonContent">
+                    <p><strong>Submit Background Task</strong></p>
+
+                    <p>Task Name:</p>
+                    <input type="text" name="taskName" placeholder="e.g. nightly-report"
+                           style="width:220px"/><br/><br/>
+
+                    <p>Trigger Group:</p>
+                    <input type="text" name="triggerGroup" value="DEFAULT"
+                           style="width:160px"/><br/><br/>
+
+                    <p>Priority:</p>
+                    <select name="priority" style="width:120px;">
+                        <option value="low">Low</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="high">High</option>
+                    </select><br/><br/>
+
+                    <p>Execution Window:</p>
+                    <select name="executionWindow" style="width:160px;">
+                        <option value="immediate" selected>Immediate</option>
+                        <option value="off-peak">Off-Peak</option>
+                        <option value="scheduled">Scheduled</option>
+                    </select><br/><br/>
+
+                    <p>Task Definition:</p>
+                    <textarea name="taskDefinition" rows="6" cols="72"
+                              placeholder="Paste task configuration here..."></textarea><br/><br/>
+
+                    <input name="SUBMIT" value="Submit Task" type="SUBMIT"/>
+                </div>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <!-- Decoy: Scheduler Status -->
+    <div class="lesson-page-wrapper">
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form"
+                  action="scheduler/status" id="schedulerStatusForm">
+                <p><strong>Scheduler Status</strong></p>
+
+                <p>Task Name:</p>
+                <input type="text" name="taskName" placeholder="optional filter"
+                       style="width:200px"/><br/><br/>
+
+                <p>Trigger Group:</p>
+                <input type="text" name="triggerGroup" value="DEFAULT"
+                       style="width:160px"/><br/><br/>
+
+                <p>Priority Filter:</p>
+                <select name="priority" style="width:120px;">
+                    <option value="all" selected>All</option>
+                    <option value="high">High</option>
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                </select><br/><br/>
+
+                <input name="SUBMIT" value="Check Status" type="SUBMIT"/>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+    <!-- Decoy: Task History -->
+    <div class="lesson-page-wrapper">
+        <div class="attack-container">
+            <form class="attack-form" accept-charset="UNKNOWN" method="POST" name="form"
+                  action="scheduler/history" id="schedulerHistoryForm">
+                <p><strong>Task Execution History</strong></p>
+
+                <p>Task Name:</p>
+                <input type="text" name="taskName" placeholder="optional filter"
+                       style="width:200px"/><br/><br/>
+
+                <p>Trigger Group:</p>
+                <input type="text" name="triggerGroup" value="DEFAULT"
+                       style="width:160px"/><br/><br/>
+
+                <p>Max Records:</p>
+                <input type="text" name="limit" value="10"
+                       style="width:60px"/><br/><br/>
+
+                <input name="SUBMIT" value="View History" type="SUBMIT"/>
+            </form>
+
+            <div class="attack-feedback"></div>
+            <div class="attack-output"></div>
+        </div>
+    </div>
+
+</html>

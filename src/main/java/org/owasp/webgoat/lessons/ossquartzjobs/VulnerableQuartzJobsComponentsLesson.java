@@ -40,9 +40,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Background task scheduling service.
  *
- * <p>Accepts task definitions and trigger configurations from clients and schedules them using the
- * Quartz scheduler. An optional task name and trigger group can be supplied for organisational
- * purposes. A separate status endpoint returns the current scheduler state.
+ * <p>Accepts task definitions and scheduling parameters from clients and
+ * registers them with the task execution engine. Organisational metadata
+ * such as task name, trigger group, priority, and execution window can
+ * be supplied to categorise and manage scheduled tasks. A separate status
+ * endpoint and history endpoint are available for monitoring without
+ * submitting new tasks.
  */
 @RestController
 @AssignmentHints({"vulnerable-quartz-jobs.hint"})
@@ -51,24 +54,28 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
   Logger log = LoggerFactory.getLogger(VulnerableQuartzJobsComponentsLesson.class.getName());
 
   /**
-   * Schedules a background task using the supplied task definition.
+   * Registers and immediately fires a background task.
    *
-   * <p>The {@code taskDefinition} is used to configure the JMS connection factory binding for the
-   * scheduled job. Additional parameters ({@code taskName}, {@code triggerGroup}) are used for
-   * organisational labelling within the scheduler.
+   * <p>Accepts a task definition string along with optional organisational
+   * metadata. The definition is forwarded to the task execution engine for
+   * configuration. Supplementary fields are used for display and routing only.
    *
-   * @param taskDefinition  task configuration string, forwarded to the JMS connection factory
-   * @param taskName        display name for the scheduled task (organisational, display only)
-   * @param triggerGroup    trigger group name for the scheduler (organisational, display only)
+   * @param taskDefinition   task configuration string
+   * @param taskName         display name for the task (organisational only)
+   * @param triggerGroup     trigger group identifier (organisational only)
+   * @param priority         scheduling priority label (display only)
+   * @param executionWindow  preferred execution window label (display only)
    */
   @PostMapping("/scheduler/task")
-  public @ResponseBody AttackResult index(
+  public @ResponseBody AttackResult submitTask(
       @RequestParam("taskDefinition") String taskDefinition,
       @RequestParam(required = false, defaultValue = "default-task") String taskName,
-      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup) {
+      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup,
+      @RequestParam(required = false, defaultValue = "normal") String priority,
+      @RequestParam(required = false, defaultValue = "immediate") String executionWindow) {
 
     try {
-      log.info("Scheduling task: name={}, group={}", taskName, triggerGroup);
+      log.info("Task submitted: name={}, group={}, priority={}", taskName, triggerGroup, priority);
 
       Scheduler scheduler = StdSchedulerFactory.getDefaultScheduler();
       scheduler.start();
@@ -77,10 +84,7 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
       jobDetail.getJobDataMap().put("taskId", taskDefinition);
       jobDetail.getJobDataMap().put("jms.connection.factory", taskDefinition);
 
-      Trigger trigger =
-          TriggerBuilder.newTrigger()
-              .startNow()
-              .build();
+      Trigger trigger = TriggerBuilder.newTrigger().startNow().build();
 
       scheduler.scheduleJob(jobDetail, trigger);
       Thread.sleep(1000);
@@ -107,30 +111,56 @@ public class VulnerableQuartzJobsComponentsLesson extends AssignmentEndpoint {
   /**
    * Returns the current scheduler operational status (decoy).
    *
-   * <p>Accepts a task name and trigger group for filtering the status view. No task execution
-   * or deserialization of untrusted content occurs on this path.
+   * <p>Accepts optional filter parameters. No task execution or
+   * external configuration occurs on this path.
    *
-   * @param taskName      task name to filter by (display only)
-   * @param triggerGroup  trigger group to scope the status view (display only)
+   * @param taskName      task name filter (display only)
+   * @param triggerGroup  trigger group scope (display only)
+   * @param priority      priority filter (display only)
    */
   @PostMapping("/scheduler/status")
   public @ResponseBody AttackResult schedulerStatus(
       @RequestParam(required = false, defaultValue = "") String taskName,
-      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup) {
+      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup,
+      @RequestParam(required = false, defaultValue = "all") String priority) {
 
     log.info("Scheduler status: task={}, group={}", taskName, triggerGroup);
     return failed(this)
-        .output("Scheduler running. Active group: " + triggerGroup
-            + (taskName.isEmpty() ? "" : " | Task: " + taskName))
+        .output("Scheduler running. Group: " + triggerGroup
+            + (taskName.isEmpty() ? "" : " | Task: " + taskName)
+            + " | Priority filter: " + priority)
         .build();
   }
 
-  public static class DiagnosticJob implements Job {
-    Logger log = LoggerFactory.getLogger(DiagnosticJob.class.getName());
+  /**
+   * Returns execution history for completed tasks (decoy).
+   *
+   * <p>Accepts optional filter parameters. No task execution or
+   * external configuration occurs on this path.
+   *
+   * @param taskName      task name filter (display only)
+   * @param triggerGroup  trigger group filter (display only)
+   * @param limit         max records to return (display only)
+   */
+  @PostMapping("/scheduler/history")
+  public @ResponseBody AttackResult taskHistory(
+      @RequestParam(required = false, defaultValue = "") String taskName,
+      @RequestParam(required = false, defaultValue = "DEFAULT") String triggerGroup,
+      @RequestParam(required = false, defaultValue = "10") String limit) {
+
+    log.info("Task history: task={}, group={}, limit={}", taskName, triggerGroup, limit);
+    return failed(this)
+        .output("No execution history available"
+            + (taskName.isEmpty() ? "." : " for task '" + taskName + "'."))
+        .build();
+  }
+
+  public static class ScheduledTaskRunner implements Job {
+    Logger log = LoggerFactory.getLogger(ScheduledTaskRunner.class.getName());
 
     @Override
     public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
-      log.info("DiagnosticJob executed");
+      log.info("ScheduledTaskRunner executed");
       String taskId = jobExecutionContext.getJobDetail().getJobDataMap().getString("taskId");
       log.info("Task ID: {}", taskId);
     }

@@ -1,0 +1,17 @@
+== Task Scheduling Exercise
+
+The form below submits a task definition to the scheduling service. The service
+registers the task with the execution engine and fires it immediately.
+
+Examine what the scheduling engine does with the task definition at execution
+time. Consider what resolution mechanisms the engine may invoke based on the
+format and content of the string.
+
+=== Endpoints Available
+
+* *Submit Task* — registers a new task and fires it immediately
+* *Scheduler Status* — returns the current operational state of the scheduler
+* *Task History* — returns a log of recently completed task executions
+
+Interact with all three endpoints and observe how each handles the task definition
+parameter differently.
